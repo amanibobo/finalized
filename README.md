@@ -1,25 +1,12 @@
 # death clock clone for deep24
 
-this project is a clone of the viral DeathClock app. This was a task for a bounty for Deep24: 1. Design, Can you design an engaging experience despite there being so many questions? 2. The Actuarial Engine, Can you research and understand how you can scientifically calculate someone's lifespan? Can you translate it well into code and test it well?, 3. iOS Development with AI Tools, Can you effectively develop iOS apps with AI tools? Note: You do not need all three to succeed. Being outstanding at one is enough.
+deathclock clone built for Deep24 bounty. transforms actuarial science into an engaging iOS experience—asking dozens of health questions, running lifespan calculations based on real mortality research, and delivering predictions through thoughtfully designed ui.
 
+for usage and more:
 
-<p>
-  <a href="https://colab.research.google.com/">
-    <img src="https://img.shields.io/badge/Google_Colab-F9AB00?style=for-the-badge&logo=googlecolab&color=525252" alt="Google Colab"/>
-  </a>
-  <a href="https://figma.com/">
-    <img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&color=525252" alt="Figma"/>
-  </a>
-  <a href="https://github.com/amanibobo/finalized">
-    <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&color=525252" alt="GitHub"/>
-  </a>
-  <a href="https://github.com/amanibobo/finalized/issues">
-    <img src="https://img.shields.io/badge/Deep24-FF6B6B?style=for-the-badge&color=1816" alt="Deep24"/>
-  </a>
-  <a href="https://youtube.com/">
-    <img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"/>
-  </a>
-</p>
+| [Project Page](https://animate3d.github.io/) | [youtube video](https://arxiv.org/abs/2407.11398) | Paper | [Video](https://www.youtube.com/watch?v=qkaeeGzLnY8) | 
+[Training Data](https://huggingface.co/datasets/yanqinJiang/MV-Video) | 
+[Test Data](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) |
 
 ---
 
