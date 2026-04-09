@@ -1,8 +1,4 @@
-# Death Clock
-
-<p align="center">
-  <img src="bruh/assets/images/death-clock-wordmark.png" alt="Death Clock" width="300"/>
-</p>
+# death clock
 
 <p align="center">
   <em>Know your numbers. Change your trajectory.</em>
