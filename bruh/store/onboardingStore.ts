@@ -94,17 +94,46 @@ export interface PredictResult {
   };
 }
 
+// ── Longevity report types ───────────────────────────────────────────────────
+
+export interface ReportMilestone { title: string; body: string; done: boolean }
+export interface ReportItem       { title: string; body: string }
+export interface ReportItemNextStep extends ReportItem { next_step: string; status: string }
+export interface ReportItemGoal    extends ReportItem { goal: string }
+export interface ReportItemFreq    extends ReportItem { evidence: string; frequency: string }
+export interface ReportItemHow     extends ReportItem { evidence: string; how: string }
+export interface ReportStep        { title: string; body: string }
+
+export interface LongevityReport {
+  your_journey:        { intro: string; milestones: ReportMilestone[] };
+  progress_and_trends: string;
+  critical_findings:   { intro: string; items: ReportItem[] };
+  positive_findings:   { intro: string; items: ReportItemNextStep[] };
+  doctor_topics:       { intro: string; items: ReportItemGoal[] };
+  hormone_analysis:    string;
+  genetics:            string;
+  roadmap:             { intro: string; steps: ReportStep[] };
+  behavioral_goals:    { intro: string; items: ReportItemFreq[] };
+  diet:                { intro: string; items: ReportItemHow[] };
+  supplements:         { intro: string; items: ReportItem[] };
+  devices:             { intro: string; items: ReportItem[] };
+  prescriptions:       string;
+  screenings:          { intro: string; items: ReportItem[] };
+}
+
 // ── Store ────────────────────────────────────────────────────────────────────
 
 interface OnboardingStore {
   answers: Partial<OnboardingAnswers>;
   prediction: PredictResult | null;
+  report: LongevityReport | null;
   isLoading: boolean;
   error: string | null;
 
   setAnswer: <K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) => void;
   setAnswers: (partial: Partial<OnboardingAnswers>) => void;
   setPrediction: (result: PredictResult) => void;
+  setReport: (report: LongevityReport) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -113,6 +142,7 @@ interface OnboardingStore {
 const INITIAL_STATE = {
   answers: {} as Partial<OnboardingAnswers>,
   prediction: null,
+  report: null,
   isLoading: false,
   error: null,
 };
@@ -127,6 +157,8 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     set((state) => ({ answers: { ...state.answers, ...partial } })),
 
   setPrediction: (result) => set({ prediction: result, error: null }),
+
+  setReport: (report) => set({ report }),
 
   setLoading: (loading) => set({ isLoading: loading }),
 

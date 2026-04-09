@@ -1,9 +1,8 @@
 import { ScreenBackButton } from '@/components/ScreenBackButton';
 import { onboarding } from '@/constants/onboarding';
 import { colors } from '@/constants/theme';
-import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -15,7 +14,6 @@ type Props = {
  * Responsive horizontal padding, max content width, and a top back control.
  */
 export function OnboardingScreenWrapper({ children }: Props) {
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const pad = Math.max(16, Math.min(36, width * 0.065));
 
@@ -27,13 +25,6 @@ export function OnboardingScreenWrapper({ children }: Props) {
           <ScreenBackButton />
         </Animated.View>
         <View style={styles.slot}>{children}</View>
-        {/* TEMP: remove — dev shortcut to analyzing screen */}
-        <Pressable
-          style={styles.skipDev}
-          onPress={() => router.push('/onboarding/analyzing')}
-          hitSlop={10}>
-          <Text style={styles.skipDevText}>Skip → Analyzing</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );

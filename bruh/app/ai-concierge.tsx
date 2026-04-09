@@ -1,12 +1,15 @@
-import { mono, onboarding } from '@/constants/onboarding';
 import { fonts } from '@/constants/fonts';
-import { colors, radii } from '@/constants/theme';
+import { mono, onboarding } from '@/constants/onboarding';
+import { colors } from '@/constants/theme';
+import { useOnboardingStore } from '@/store/onboardingStore';
+import { chatWithConcierge } from '@/utils/api';
 import { lightImpact } from '@/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,18 +19,13 @@ import {
   TextInput,
   useWindowDimensions,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const HARDCODED_RESPONSE =
-  "Based on your health profile, your current life expectancy is 83 years. To improve this, I'd recommend focusing on consistent sleep (7–9 hrs), reducing processed foods, and adding 30 minutes of moderate cardio 4x per week. Your next recommended screening is a lipid panel — it's been over 12 months.";
 
 type Message = { role: 'user' | 'assistant'; text: string };
 
 const SUGGESTIONS: string[] = [
-  'Your necessary preventative screenings',
-  'An analysis of your sleep',
+  'Your necessary preventative screenings and analysis of your sleep',
   'A summary of your overall health',
   'The best diet for you',
   'Supplements to consider',
@@ -38,32 +36,49 @@ export default function AiConciergeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const pad = Math.max(16, Math.min(36, width * 0.065));
+
+  const answers = useOnboardingStore((s) => s.answers);
+
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [thinking, setThinking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
-  const send = (text?: string) => {
+  const scrollToBottom = () =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+
+  const send = async (text?: string) => {
     const content = (text ?? message).trim();
-    if (!content) return;
+    if (!content || thinking) return;
+
     lightImpact();
     setMessage('');
-    setMessages((prev) => [...prev, { role: 'user', text: content }]);
+    setError(null);
+
+    const userMsg: Message = { role: 'user', text: content };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setThinking(true);
-  };
+    scrollToBottom();
 
-  useEffect(() => {
-    if (!thinking) return;
-    const t = setTimeout(() => {
+    // Build the history in the format the API expects
+    const history = updatedMessages.map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+
+    try {
+      const { reply } = await chatWithConcierge(answers, history);
+      setMessages((prev) => [...prev, { role: 'assistant', text: reply }]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong.';
+      setError(msg);
+    } finally {
       setThinking(false);
-      setMessages((prev) => [...prev, { role: 'assistant', text: HARDCODED_RESPONSE }]);
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [thinking]);
-
-  useEffect(() => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
-  }, [messages, thinking]);
+      scrollToBottom();
+    }
+  };
 
   const showEmpty = messages.length === 0 && !thinking;
 
@@ -75,6 +90,8 @@ export default function AiConciergeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}>
         <View style={[styles.inner, { paddingHorizontal: pad }]}>
+
+          {/* ── Header ── */}
           <View style={styles.header}>
             <Pressable
               style={styles.backBtn}
@@ -87,10 +104,14 @@ export default function AiConciergeScreen() {
             <Text style={styles.headerTitle}>AI Concierge</Text>
           </View>
 
+          {/* ── Chat area ── */}
           <ScrollView
             ref={scrollRef}
             style={styles.scroll}
-            contentContainerStyle={[styles.scrollContent, showEmpty && styles.scrollContentCentered]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              showEmpty && styles.scrollContentCentered,
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
 
@@ -119,7 +140,6 @@ export default function AiConciergeScreen() {
                       styles.bubbleRow,
                       msg.role === 'user' ? styles.bubbleRowUser : styles.bubbleRowAssistant,
                     ]}>
-
                     <View
                       style={[
                         styles.bubble,
@@ -143,10 +163,18 @@ export default function AiConciergeScreen() {
                     </View>
                   </View>
                 )}
+
+                {error && (
+                  <View style={styles.errorRow}>
+                    <Ionicons name="warning-outline" size={14} color="#D9363E" />
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
               </View>
             )}
           </ScrollView>
 
+          {/* ── Input bar ── */}
           <View style={styles.inputRow}>
             <View style={styles.inputBubble}>
               <TextInput
@@ -157,16 +185,23 @@ export default function AiConciergeScreen() {
                 onChangeText={setMessage}
                 returnKeyType="send"
                 onSubmitEditing={() => send()}
+                multiline
               />
               <Pressable
-                style={({ pressed }) => [styles.sendBtn, pressed && styles.sendBtnPressed]}
+                style={({ pressed }) => [styles.sendBtn, (pressed || thinking) && styles.sendBtnDim]}
                 onPress={() => send()}
+                disabled={thinking}
                 accessibilityRole="button"
                 accessibilityLabel="Send">
-                <Ionicons name="arrow-up" size={20} color={colors.white} />
+                {thinking ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Ionicons name="arrow-up" size={20} color={colors.white} />
+                )}
               </Pressable>
             </View>
           </View>
+
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -174,19 +209,16 @@ export default function AiConciergeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.cream,
-  },
-  flex: {
-    flex: 1,
-  },
+  safe: { flex: 1, backgroundColor: colors.cream },
+  flex: { flex: 1 },
   inner: {
     flex: 1,
     maxWidth: 560,
     width: '100%',
     alignSelf: 'center',
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -202,21 +234,18 @@ const styles = StyleSheet.create({
     color: colors.black,
     letterSpacing: -0.3,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 24,
-  },
+
+  // Scroll
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
   scrollContentCentered: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingBottom: 80,
   },
-  bulbWrap: {
-    alignItems: 'center',
-    marginBottom: 14,
-  },
+
+  // Empty state
+  bulbWrap: { alignItems: 'center', marginBottom: 14 },
   bulbCircle: {
     width: 46,
     height: 46,
@@ -249,34 +278,18 @@ const styles = StyleSheet.create({
     color: onboarding.unitGray,
     textAlign: 'center',
   },
-  thread: {
-    paddingTop: 16,
-    gap: 12,
-  },
+
+  // Thread
+  thread: { paddingTop: 16, gap: 12 },
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
   },
-  bubbleRowUser: {
-    justifyContent: 'flex-end',
-  },
-  bubbleRowAssistant: {
-    justifyContent: 'flex-start',
-  },
-  avatarCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.08)',
-    flexShrink: 0,
-  },
+  bubbleRowUser: { justifyContent: 'flex-end' },
+  bubbleRowAssistant: { justifyContent: 'flex-start' },
   bubble: {
-    maxWidth: '75%',
+    maxWidth: '80%',
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -291,30 +304,39 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.08)',
   },
-  thinkingBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+  thinkingBubble: { paddingHorizontal: 16, paddingVertical: 12 },
   bubbleText: {
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '400',
   },
-  bubbleTextUser: {
-    color: colors.white,
+  bubbleTextUser: { color: colors.white },
+  bubbleTextAssistant: { color: colors.black },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
   },
-  bubbleTextAssistant: {
-    color: colors.black,
+  errorText: {
+    fontFamily: mono,
+    fontSize: 13,
+    color: '#D9363E',
+    flex: 1,
   },
+
+  // Input
   inputRow: {
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.08)',
+    gap: 6,
   },
   inputBubble: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 6,
@@ -329,6 +351,9 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.black,
     minHeight: 38,
+    maxHeight: 120,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   sendBtn: {
     width: 38,
@@ -338,8 +363,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginBottom: 2,
   },
-  sendBtnPressed: {
-    opacity: 0.88,
+  sendBtnDim: { opacity: 0.6 },
+  disclaimer: {
+    fontFamily: mono,
+    fontSize: 11,
+    color: 'rgba(0,0,0,0.35)',
+    textAlign: 'center',
   },
 });

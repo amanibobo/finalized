@@ -54,6 +54,21 @@ export async function whatIfPrediction(
   return apiFetch('/what-if', { answers, overrides });
 }
 
+/** POST /report — generate a personalised AI longevity report. */
+export async function generateLongevityReport(
+  answers: Partial<OnboardingAnswers>,
+): Promise<{ report: import('@/store/onboardingStore').LongevityReport }> {
+  return apiFetch('/report', { answers });
+}
+
+/** POST /chat — RAG-grounded concierge chat. */
+export async function chatWithConcierge(
+  answers: Partial<OnboardingAnswers>,
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+): Promise<{ reply: string }> {
+  return apiFetch<{ reply: string }>('/chat', { answers, messages });
+}
+
 /** GET /health — liveness check. */
 export async function checkApiHealth(): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_URL}/health`);

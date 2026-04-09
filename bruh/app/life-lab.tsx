@@ -8,7 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useRef, useState } from 'react';
 import LongevityReportContent, { REPORT_SECTIONS } from '@/components/LongevityReportContent';
+import DynamicReportContent from '@/components/DynamicReportContent';
 import { generateAndShareReport } from '@/utils/generateReport';
+import { generateLongevityReport } from '@/utils/api';
 import Svg, { Path, Circle } from 'react-native-svg';
 import {
   ActivityIndicator,
@@ -129,19 +131,41 @@ export default function LifeLabScreen() {
   const [tab, setTab] = useState<TabId>('gauge');
   const [showContents, setShowContents] = useState(false);
   const [showLifeExpModal, setShowLifeExpModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const reportScrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
 
   const predictionResult = useOnboardingStore((s) => s.prediction);
   const predictionError  = useOnboardingStore((s) => s.error);
+  const answers          = useOnboardingStore((s) => s.answers);
+  const report           = useOnboardingStore((s) => s.report);
+  const setReport        = useOnboardingStore((s) => s.setReport);
+  const firstName        = useOnboardingStore((s) => s.answers.first_name);
 
   const predictedAge = predictionResult?.prediction.predicted_death_age ?? 83;
   const deltaYears   = predictionResult?.prediction.years_vs_baseline ?? 0;
 
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const fetchReport = async () => {
+    setReportLoading(true);
+    setReportError(null);
+    try {
+      const { report: data } = await generateLongevityReport(answers);
+      setReport(data);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Failed to generate report.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const onTab = (id: TabId) => {
     lightImpact();
     setTab(id);
+    if (id === 'plan' && !report && !reportLoading) {
+      fetchReport();
+    }
   };
 
   const tabBarBottom = Math.max(insets.bottom, 4);
@@ -293,9 +317,17 @@ export default function LifeLabScreen() {
           </>
         ) : (
           <>
-            {refreshing ? (
+            {reportLoading ? (
               <View style={styles.refreshOverlay}>
                 <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Generating your report…</Text>
+              </View>
+            ) : reportError ? (
+              <View style={styles.refreshOverlay}>
+                <Text style={styles.reportErrorText}>{reportError}</Text>
+                <Pressable style={styles.retryBtn} onPress={fetchReport}>
+                  <Text style={styles.retryBtnText}>Try Again</Text>
+                </Pressable>
               </View>
             ) : (
               <ScrollView
@@ -303,25 +335,32 @@ export default function LifeLabScreen() {
                 style={styles.scroll}
                 contentContainerStyle={[styles.scrollContent, { paddingBottom: 96 + tabBarBottom }]}
                 showsVerticalScrollIndicator={false}>
-                <LongevityReportContent
-                  onSectionLayout={(title, y) => { sectionOffsets.current[title] = y; }}
-                />
+                {report ? (
+                  <DynamicReportContent
+                    report={report}
+                    firstName={firstName}
+                    onSectionLayout={(title, y) => { sectionOffsets.current[title] = y; }}
+                  />
+                ) : (
+                  <LongevityReportContent
+                    onSectionLayout={(title, y) => { sectionOffsets.current[title] = y; }}
+                  />
+                )}
               </ScrollView>
             )}
 
             {/* PDF / Refresh / Contents bar sits just above the tab bar */}
             <View style={[styles.reportActions, { bottom: tabBarBottom + 32 }]}>
-              <Pressable style={({ pressed }) => [styles.reportBtn, pressed && { opacity: 0.8 }]} onPress={() => { lightImpact(); generateAndShareReport(); }}>
+              <Pressable style={({ pressed }) => [styles.reportBtn, pressed && { opacity: 0.8 }]} onPress={() => { lightImpact(); generateAndShareReport(report, firstName); }}>
                 <Ionicons name="document-outline" size={17} color={colors.black} />
                 <Text style={styles.reportBtnText}>PDF</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.reportBtn, pressed && { opacity: 0.8 }]}
                 onPress={() => {
-                  if (refreshing) return;
+                  if (reportLoading) return;
                   lightImpact();
-                  setRefreshing(true);
-                  setTimeout(() => setRefreshing(false), 1000);
+                  fetchReport();
                 }}>
                 <Ionicons name="refresh-outline" size={17} color={colors.black} />
                 <Text style={styles.reportBtnText}>Refresh</Text>
@@ -730,6 +769,33 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 16,
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.5)',
+    textAlign: 'center',
+  },
+  reportErrorText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: '#D9363E',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  retryBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.control,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  retryBtnText: {
+    fontFamily: mono,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.black,
   },
   reportActions: {
     position: 'absolute',

@@ -1,3 +1,4 @@
+import type { LongevityReport } from '@/store/onboardingStore';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
@@ -5,24 +6,74 @@ import { Alert } from 'react-native';
 const GREEN = '#09E27D';
 const BLACK = '#000000';
 const GRAY = '#555555';
-const LIGHT_GREEN = '#EBF9F2';
 const DIVIDER = '#E0E0E0';
 
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function section(title: string, body: string) {
-  return `
-    <div class="section">
-      <h2>${title}</h2>
-      ${body}
-    </div>
-  `;
+  return `<div class="section"><h2>${esc(title)}</h2>${body}</div>`;
 }
 
 function sub(title: string, body: string) {
-  return `<h3>${title}</h3><p>${body}</p>`;
+  return `<h3>${esc(title)}</h3><p>${esc(body)}</p>`;
 }
 
-const HTML = `
-<!DOCTYPE html>
+function para(text: string) {
+  return text ? `<p>${esc(text)}</p>` : '';
+}
+
+function buildHtml(report: LongevityReport, firstName?: string): string {
+  const titleName = firstName ? `${firstName}'s` : 'Your';
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // ── helpers to safely pull nested data ──────────────────────────────────────
+  const j = report.your_journey as any;
+  const journeyIntro: string = j?.intro ?? '';
+  const milestones: any[] = Array.isArray(j?.milestones) ? j.milestones : [];
+
+  const cf = report.critical_findings as any;
+  const critIntro: string = cf?.intro ?? '';
+  const critItems: any[] = Array.isArray(cf?.items) ? cf.items : [];
+
+  const pf = report.positive_findings as any;
+  const posIntro: string = pf?.intro ?? '';
+  const posItems: any[] = Array.isArray(pf?.items) ? pf.items : [];
+
+  const dt = report.doctor_topics as any;
+  const docIntro: string = dt?.intro ?? '';
+  const docItems: any[] = Array.isArray(dt?.items) ? dt.items : [];
+
+  const rm = report.roadmap as any;
+  const roadIntro: string = rm?.intro ?? '';
+  const roadSteps: any[] = Array.isArray(rm?.steps) ? rm.steps : [];
+
+  const bg = report.behavioral_goals as any;
+  const behavIntro: string = bg?.intro ?? '';
+  const behavItems: any[] = Array.isArray(bg?.items) ? bg.items : [];
+
+  const di = report.diet as any;
+  const dietIntro: string = di?.intro ?? '';
+  const dietItems: any[] = Array.isArray(di?.items) ? di.items : [];
+
+  const sp = report.supplements as any;
+  const suppIntro: string = sp?.intro ?? '';
+  const suppItems: any[] = Array.isArray(sp?.items) ? sp.items : [];
+
+  const dv = report.devices as any;
+  const devIntro: string = dv?.intro ?? '';
+  const devItems: any[] = Array.isArray(dv?.items) ? dv.items : [];
+
+  const sc = report.screenings as any;
+  const scrIntro: string = sc?.intro ?? '';
+  const scrItems: any[] = Array.isArray(sc?.items) ? sc.items : [];
+
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -36,7 +87,6 @@ const HTML = `
     font-size: 13px;
     line-height: 1.7;
   }
-  .report-header { margin-bottom: 20px; }
   .report-title {
     font-size: 32px;
     font-weight: 400;
@@ -48,7 +98,6 @@ const HTML = `
     font-size: 12px;
     color: ${GRAY};
     margin-top: 8px;
-    letter-spacing: 0.1px;
   }
   .divider {
     height: 2px;
@@ -63,33 +112,6 @@ const HTML = `
     padding-left: 12px;
     margin-bottom: 30px;
     line-height: 1.65;
-  }
-  .todos-card {
-    background: ${LIGHT_GREEN};
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 32px;
-  }
-  .todos-card h4 {
-    font-size: 13.5px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: ${BLACK};
-  }
-  .todo-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 7px;
-    font-size: 13px;
-    color: ${GRAY};
-  }
-  .todo-box {
-    width: 13px;
-    height: 13px;
-    border: 1.5px solid ${GREEN};
-    border-radius: 3px;
-    flex-shrink: 0;
   }
   .section { margin-bottom: 26px; }
   h2 {
@@ -126,10 +148,8 @@ const HTML = `
 </head>
 <body>
 
-<div class="report-header">
-  <div class="report-title">Amani's<br/>Longevity Report</div>
-  <div class="report-date">Created in The Life Lab &nbsp;·&nbsp; Last updated Apr 4, 2026</div>
-</div>
+<div class="report-title">${esc(titleName)}<br/>Longevity Report</div>
+<div class="report-date">Created in The Life Lab &nbsp;·&nbsp; Last updated ${dateStr}</div>
 <div class="divider"></div>
 
 <div class="notice">
@@ -138,99 +158,64 @@ const HTML = `
   For more information regarding our clinical standards and board members, please visit <strong>deathclock.co/about</strong>
 </div>
 
-<div class="todos-card">
-  <h4>Things to do to improve your life</h4>
-  <div class="todo-row"><span class="todo-box"></span>Schedule and complete bloodwork</div>
-  <div class="todo-row"><span class="todo-box"></span>Upload health documents</div>
-  <div class="todo-row"><span class="todo-box"></span>Update your health profile</div>
-</div>
-
 ${section('Your Journey', `
-  <p>You've taken the crucial first step on your longevity journey. By completing your health survey, you've established the foundation for your plan. The next steps are focused on gathering objective data to make your recommendations more precise and powerful.</p>
-  ${sub('Complete Your Health Survey', "You've completed this! This provides the baseline for your plan.")}
-  ${sub('Schedule Your Blood Work', "This is your most important next action. Objective lab data is needed to accurately assess your risk and tailor your plan.")}
-  ${sub('Complete Your Health Profile', "Adding details about your family history will help us further personalize your screening recommendations.")}
+  ${para(journeyIntro)}
+  ${milestones.map(m => sub(m.title ?? '', m.body ?? '')).join('')}
 `)}
 
-${section('Progress and Trends', `
-  <p>This is your first Longevity Plan, which establishes your health baseline. As you complete bloodwork, track your habits, and add more data over time, this section will light up with your progress. We will highlight key trends in your biomarkers and behaviors, showing you the direct impact of your efforts.</p>
-`)}
+${section('Progress and Trends', para(report.progress_and_trends))}
 
 ${section('Critical Findings', `
-  <p>Your profile reveals two key areas that require immediate attention. These behaviors have a disproportionate impact on your long-term health and are the most important opportunities for improvement right now.</p>
-  ${sub('Inconsistent Sleep', "Getting sufficient sleep only 3-4 nights per week is a major limiter on your healthspan. This directly undermines muscle repair, cognitive function, and metabolic health, effectively negating some of the significant benefits from your excellent exercise routine.")}
-  ${sub('High Sedentary Time', "Even with regular workouts, sitting for more than 8 hours a day is an independent risk factor for metabolic disease, cardiovascular problems, and mortality. Breaking up long periods of sitting is critical to mitigate this risk.")}
+  ${para(critIntro)}
+  ${critItems.map(i => sub(i.title ?? '', i.body ?? '')).join('')}
 `)}
 
 ${section('Positive Findings', `
-  <p>Your profile shows several powerful strengths that are significant assets for your longevity. You should be proud of these habits and behaviors. They form a strong foundation upon which we can build the rest of your plan.</p>
-  ${sub('Excellent Exercise Regimen', "Your commitment to frequent cardio and strength training is the single most powerful behavior for extending healthspan and defending against all Four Horsemen. Next Step: Continue this fantastic habit for life. Consider adding dedicated mobility work to support your training and prevent injury.")}
-  ${sub('No Alcohol or Nicotine Use', "Avoiding these substances is one of the most significant actions you can take to reduce your risk of cancer, cardiovascular disease, and metabolic damage. Next Step: Maintain this healthy choice. It provides a massive advantage for your long-term health.")}
-  ${sub('Strong Social Health and Low Stress', "Strong social ties and low stress are powerful predictors of a longer, healthier life. Next Step: Continue to nurture your relationships and protect your low-stress lifestyle. This is a key pillar of your well-being.")}
+  ${para(posIntro)}
+  ${posItems.map(i => sub(i.title ?? '', `${i.body ?? ''}${i.next_step ? `\nNext Step: ${i.next_step}` : ''}`)).join('')}
 `)}
 
-${section('Biomarker Goals', `
-  <p>We can't set specific biomarker goals until you complete your first blood test. This is the most important next step to making your plan precise. Once your results are in, this section will populate with your personalized targets for key health markers like ApoB and fasting insulin, showing you exactly where you stand and what to do next.</p>
-`)}
+${section('Biomarker Goals', `<p>We can't set specific biomarker goals until you complete your first blood test. Once your results are in, this section will populate with your personalized targets.</p>`)}
 
 ${section('Topics to Discuss with Your Doctor', `
-  <p>Your annual check-up is a valuable opportunity to be proactive. Use your next visit to discuss these key topics with your doctor to begin gathering the objective data needed for your longevity plan.</p>
-  ${sub('Ordering Comprehensive Longevity Bloodwork', "This is the most critical missing piece of your health puzzle. Standard panels often miss the earliest signs of risk. Goal: Request a lab order for a comprehensive panel including ApoB, Lp(a), fasting insulin, and hs-CRP.")}
-  ${sub('Discussing Key Genetic Tests', "These one-time tests reveal lifelong, unmodifiable risks. Goal: Ask for a referral or lab order for APOE genotype (Alzheimer's risk) and Lp(a) (cardiovascular risk).")}
-  ${sub('Establishing a Blood Pressure Baseline', "Hypertension is a 'silent killer' and a primary driver of heart disease and stroke. Goal: Get an accurate in-office blood pressure reading and discuss home monitoring.")}
+  ${para(docIntro)}
+  ${docItems.map(i => sub(i.title ?? '', `${i.body ?? ''}${i.goal ? `\nGoal: ${i.goal}` : ''}`)).join('')}
 `)}
 
-${section('Hormone Analysis', `
-  <p>Your hormone levels are critical for energy, mood, body composition, and long-term health. A comprehensive blood panel is needed to assess your hormonal status. Once these results are available, this section will provide a detailed analysis and personalized recommendations.</p>
-`)}
+${section('Hormone Analysis', para(report.hormone_analysis))}
 
-${section('Genetics', `
-  <p>Your genetic profile is a key part of your longevity puzzle, revealing your inherited predispositions for certain conditions. We recommend testing for key markers like APOE and Lp(a) to understand your inherited risks. Once you've completed this testing, this section will explain your results and the specific actions you can take.</p>
-`)}
+${section('Genetics', para(report.genetics))}
 
 ${section('What to Do Next — Your Roadmap', `
-  <p>Your longevity journey is a marathon, not a sprint. At 19, you have the incredible advantage of time. Our roadmap is designed to build a powerful foundation of health over the coming years, starting with the most critical actions first.</p>
-  ${sub('Step 1: Establish Your Baseline', "Your immediate priority is to get foundational bloodwork. This will move your plan from being based on general statistics to being precisely tailored to your unique biology.")}
-  ${sub('Step 2: Optimize Lifestyle Foundations', "Prioritize achieving consistent sleep of 7-9 hours per night and actively breaking up your sedentary time during the day. These behavioral changes are free and have a massive return on investment.")}
-  ${sub('Step 3: Track and Monitor', "Use a home blood pressure monitor to establish your baseline and a wearable device to get objective feedback on your sleep and activity. What gets measured gets managed.")}
+  ${para(roadIntro)}
+  ${roadSteps.map(s => sub(s.title ?? '', s.body ?? '')).join('')}
 `)}
 
 ${section('Behavioral Goals', `
-  <p>Building powerful habits now will compound benefits for decades.</p>
-  ${sub('Achieve Consistent, Quality Sleep', "Aim for 7-9 hours of quality sleep at least 6 nights per week.")}
-  ${sub('Break Up Sedentary Time', "Stand or walk for 2-5 minutes for every hour of sitting.")}
-  ${sub('Increase Daily Hydration', "Aim for 8-10 glasses (about 2-3 liters) of water daily.")}
-  ${sub('Incorporate Daily Mobility', "Perform 10 minutes of dynamic stretching or mobility exercises before each workout.")}
+  ${para(behavIntro)}
+  ${behavItems.map(i => sub(i.title ?? '', `${i.body ?? ''}${i.frequency ? `\nFrequency: ${i.frequency}` : ''}`)).join('')}
 `)}
 
 ${section('Diet', `
-  <p>Your current diet is a mix of healthy habits and potential risks. The goal is to build on what you do well—eating fruits and veggies daily—while systematically reducing your intake of processed foods.</p>
-  ${sub('Prioritize Protein Intake', "Aim for at least 30 grams of high-quality protein with each meal.")}
-  ${sub('Systematically Reduce Processed Foods', "Start by replacing one processed food item each day with a whole-food alternative.")}
+  ${para(dietIntro)}
+  ${dietItems.map(i => sub(i.title ?? '', `${i.body ?? ''}${i.how ? `\nHow to Start: ${i.how}` : ''}`)).join('')}
 `)}
 
 ${section('Supplements', `
-  <p>Supplements should be targeted, not speculative. Based on your profile, these foundational supplements can support your active lifestyle and fill potential gaps.</p>
-  ${sub('Vitamin D3', "Essential for immune function, bone health, and mood. Many people are deficient, and individuals with darker skin tones are at higher risk.")}
-  ${sub('Creatine Monohydrate', "Creatine will directly support your strength training goals by increasing performance and helping build lean muscle mass.")}
-  ${sub('Magnesium Glycinate', "Well-absorbed and can improve sleep quality and support muscle relaxation, which could help address your inconsistent sleep schedule.")}
+  ${para(suppIntro)}
+  ${suppItems.map(i => sub(i.title ?? '', i.body ?? '')).join('')}
 `)}
 
 ${section('Devices & Equipment', `
-  <p>Objective data is your guide to progress.</p>
-  ${sub('Wearable Sleep & Activity Tracker (e.g., Oura, Whoop)', "Provides objective data on your sleep stages, duration, and quality, along with recovery and activity metrics.")}
-  ${sub('Digital Blood Pressure Monitor', "An easy-to-use device for tracking your blood pressure at home.")}
-  ${sub('Continuous Glucose Monitor (CGM)', "Tracks your blood sugar levels 24/7, showing you exactly how your body responds to the foods you eat.")}
+  ${para(devIntro)}
+  ${devItems.map(i => sub(i.title ?? '', i.body ?? '')).join('')}
 `)}
 
-${section('Prescriptions', `
-  <p>Based on your current profile, no new prescriptions are suggested. This will be re-evaluated after you complete your bloodwork.</p>
-`)}
+${section('Prescriptions', para(report.prescriptions))}
 
 ${section('Screenings', `
-  <p>At your age, our screening strategy is focused on establishing a proactive baseline for the future.</p>
-  ${sub('Germline Genetic Testing', "Screens for inherited genetic variants that can significantly increase your risk for certain cancers and cardiovascular conditions.")}
-  ${sub('Annual Skin Cancer Exam', "A simple, non-invasive visual examination by a dermatologist to detect skin cancers like melanoma at their earliest, most treatable stage.")}
+  ${para(scrIntro)}
+  ${scrItems.map(i => sub(i.title ?? '', i.body ?? '')).join('')}
 `)}
 
 <div class="footer">
@@ -240,21 +225,19 @@ ${section('Screenings', `
 </div>
 
 </body>
-</html>
-`;
+</html>`;
+}
 
-export async function generateAndShareReport() {
+export async function generateAndShareReport(report?: LongevityReport | null, firstName?: string) {
   try {
-    const { uri } = await Print.printToFileAsync({
-      html: HTML,
-      base64: false,
-    });
+    const html = report ? buildHtml(report, firstName) : buildFallbackHtml();
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
-        dialogTitle: "Amani's Longevity Report",
+        dialogTitle: firstName ? `${firstName}'s Longevity Report` : 'Longevity Report',
         UTI: 'com.adobe.pdf',
       });
     } else {
@@ -264,4 +247,14 @@ export async function generateAndShareReport() {
     Alert.alert('Error', 'Could not generate the PDF. Please try again.');
     console.error(e);
   }
+}
+
+function buildFallbackHtml(): string {
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:52px 56px;">
+    <div style="font-size:32px;font-weight:400;">Your Longevity Report</div>
+    <div style="font-size:12px;color:#555;margin-top:8px;">Last updated ${dateStr}</div>
+    <hr style="border:none;border-top:2px solid #09E27D;margin:16px 0 22px;" />
+    <p style="color:#555;">Your report is still being generated. Please open the app and wait for the report to finish loading, then try exporting again.</p>
+  </body></html>`;
 }

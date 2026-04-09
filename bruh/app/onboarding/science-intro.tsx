@@ -1,5 +1,5 @@
 import { FIRST_LIFESTYLE_STEP_ID } from '@/constants/lifestyleQuestions';
-import { mono, onboarding, onboardingHeadingFontSize } from '@/constants/onboarding';
+import { mono, onboardingHeadingFontSize } from '@/constants/onboarding';
 import { colors, radii } from '@/constants/theme';
 import { useFlashPress } from '@/hooks/useFlashPress';
 import { useRouter } from 'expo-router';
@@ -113,13 +113,6 @@ export default function ScienceIntroScreen() {
 
           <View style={styles.footer}>
             <GetStartedButton onPress={goNext} />
-            {/* TEMP: remove — dev shortcut */}
-            <Pressable
-              style={styles.skipDev}
-              onPress={() => router.push('/onboarding/analyzing')}
-              hitSlop={10}>
-              <Text style={styles.skipDevText}>Skip → Analyzing</Text>
-            </Pressable>
           </View>
         </View>
       </View>
@@ -167,16 +160,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 4,
     alignItems: 'center',
-  },
-  skipDev: {
-    marginTop: 14,
-    paddingVertical: 6,
-  },
-  skipDevText: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: onboarding.unitGray,
-    textDecorationLine: 'underline',
   },
   steps: {
     gap: 28,

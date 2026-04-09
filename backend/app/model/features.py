@@ -113,6 +113,9 @@ _DISPLAY_OVERRIDES: dict[str, str] = {
     "4-8 hours":                               "four_to_eight_hours",
     "2–4 hours":                               "two_to_four_hours",
     "2-4 hours":                               "two_to_four_hours",
+    # Exercise mobility (digit-based option label)
+    "1–2 times per week":                      "one_to_two_times_per_week",
+    "1-2 times per week":                      "one_to_two_times_per_week",
     # Sleep duration (digit-based display labels)
     "1–2 nights per week":                     "one_to_two_nights_per_week",
     "1-2 nights per week":                     "one_to_two_nights_per_week",

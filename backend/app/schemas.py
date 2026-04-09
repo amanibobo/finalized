@@ -104,3 +104,79 @@ class WhatIfResponse(BaseModel):
     hypothetical: PredictResponse
     delta_years: float
     changed_fields: list[str]
+
+
+class ReportMilestone(BaseModel):
+    title: str
+    body: str
+    done: bool
+
+class ReportItem(BaseModel):
+    title: str
+    body: str
+
+class ReportItemNextStep(BaseModel):
+    title: str
+    body: str
+    next_step: str
+    status: str
+
+class ReportItemGoal(BaseModel):
+    title: str
+    body: str
+    goal: str
+
+class ReportItemFrequency(BaseModel):
+    title: str
+    body: str
+    evidence: str
+    frequency: str
+
+class ReportItemHow(BaseModel):
+    title: str
+    body: str
+    evidence: str
+    how: str
+
+class ReportStep(BaseModel):
+    title: str
+    body: str
+
+class LongevityReport(BaseModel):
+    # All fields have defaults so a partial LLM response never causes a 422
+    your_journey:        dict[str, Any] = Field(default_factory=dict)
+    progress_and_trends: str = ""
+    critical_findings:   dict[str, Any] = Field(default_factory=dict)
+    positive_findings:   dict[str, Any] = Field(default_factory=dict)
+    doctor_topics:       dict[str, Any] = Field(default_factory=dict)
+    hormone_analysis:    str = ""
+    genetics:            str = ""
+    roadmap:             dict[str, Any] = Field(default_factory=dict)
+    behavioral_goals:    dict[str, Any] = Field(default_factory=dict)
+    diet:                dict[str, Any] = Field(default_factory=dict)
+    supplements:         dict[str, Any] = Field(default_factory=dict)
+    devices:             dict[str, Any] = Field(default_factory=dict)
+    prescriptions:       str = ""
+    screenings:          dict[str, Any] = Field(default_factory=dict)
+
+
+class ReportRequest(BaseModel):
+    answers: dict[str, Any] = Field(..., description="Full questionnaire answers.")
+
+
+class ReportResponse(BaseModel):
+    report: LongevityReport
+
+
+class ChatMessage(BaseModel):
+    role: str   # "user" | "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    answers: dict[str, Any] = Field(..., description="Full questionnaire answers.")
+    messages: list[ChatMessage] = Field(..., description="Conversation history including the latest user message.")
+
+
+class ChatResponse(BaseModel):
+    reply: str
