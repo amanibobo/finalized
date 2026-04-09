@@ -2,7 +2,7 @@
 
 this project is a clone of the viral DeathClock app. This was a task for a bounty for Deep24: 1. Design, Can you design an engaging experience despite there being so many questions? 2. The Actuarial Engine, Can you research and understand how you can scientifically calculate someone's lifespan? Can you translate it well into code and test it well?, 3. iOS Development with AI Tools, Can you effectively develop iOS apps with AI tools? Note: You do not need all three to succeed. Being outstanding at one is enough.
 
-<p align="center">
+<p>
   <a href="https://github.com/amanibobo/finalized/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"/>
   </a>
