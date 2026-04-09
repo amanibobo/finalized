@@ -14,7 +14,7 @@ this project is a clone of the viral DeathClock app. This was a task for a bount
     <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&color=525252" alt="GitHub"/>
   </a>
   <a href="https://github.com/amanibobo/finalized/issues">
-    <img src="https://versifyimages.s3.us-west-1.amazonaws.com/hiring-company-logos/deep24/1772080831415-3f53fbec-1816-4f62-9e8d-0bec0e72ef88.png" alt="Deep24 Bounty" height="28"/>
+    <img src="https://img.shields.io/badge/Deep24-FF6B6B?style=for-the-badge&color=1816" alt="Deep24"/>
   </a>
   <a href="https://youtube.com/">
     <img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"/>
