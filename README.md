@@ -4,9 +4,9 @@ deathclock clone built for Deep24 bounty. transforms actuarial science into an e
 
 for usage and more:
 
-| [Project Page](https://animate3d.github.io/) | [youtube video](https://arxiv.org/abs/2407.11398) | Paper | [Video](https://www.youtube.com/watch?v=qkaeeGzLnY8) | 
-[Training Data](https://huggingface.co/datasets/yanqinJiang/MV-Video) | 
-[Test Data](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) |
+| [project page](https://animate3d.github.io/) | [youtube video](https://arxiv.org/abs/2407.11398) | [figma](https://www.youtube.com/watch?v=qkaeeGzLnY8) | 
+[google colab](https://huggingface.co/datasets/yanqinJiang/MV-Video) | 
+[deep24 bounty submission](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) |
 
 ---
 
