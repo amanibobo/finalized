@@ -1,6 +1,6 @@
 # death clock clone for deep24
 
-deathclock clone built for Deep24 bounty. transforms actuarial science into an engaging iOS experience—asking dozens of health questions, running lifespan calculations based on real mortality research, and delivering predictions through thoughtfully designed ui.
+deathclock clone built for Deep24 bounty. transforms actuarial science into an engaging ios experience asking dozens of health questions, running lifespan calculations based on real mortality research, and delivering predictions through thoughtfully designed ui.
 
 for usage and more:
 
