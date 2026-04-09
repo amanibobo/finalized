@@ -19,15 +19,8 @@ this project is a clone of the viral DeathClock app. This was a task for a bount
 
 ---
 
-## Demo Video
+ Demo Video
 
-<p align="center">
-  <em>Watch Death Clock in action — from onboarding to your personalized longevity report</em>
-</p>
-
-<p align="center">
-  <img src="bruh/assets/images/death-clock-wordmark.png" alt="Demo" width="600"/>
-</p>
 
 ---
 
