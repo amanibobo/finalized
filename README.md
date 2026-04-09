@@ -80,7 +80,7 @@ Death Clock uses **SSA 2022 life tables** as the baseline, representing the aver
 
 ## Features
 
-### 📱 Mobile App (Expo/React Native)
+### Mobile App (Expo/React Native)
 - **29-question onboarding survey** covering demographics, lifestyle, diet, exercise, sleep, social factors, clinical biomarkers, and family history
 - **Real-time prediction** with animated countdown to your predicted death date
 - **Risk factor breakdown** showing your highest-impact areas
@@ -88,14 +88,14 @@ Death Clock uses **SSA 2022 life tables** as the baseline, representing the aver
 - **AI Longevity Report** — personalized PDF-ready report with milestones, recommendations, and actionable steps
 - **AI Health Concierge** — chat with context-aware assistant trained on your health profile
 
-### 🧠 Backend API (FastAPI)
+### Backend API (FastAPI)
 - **`POST /predict`** — Full prediction from questionnaire answers
 - **`POST /explain`** — Prediction with risk factor breakdown and retrieval queries
 - **`POST /what-if`** — Compare base predictions vs hypothetical lifestyle changes
 - **`POST /report`** — Generate AI-powered longevity report
 - **`POST /chat`** — RAG-grounded health concierge chat
 
-### 📊 Jupyter Notebook
+### Jupyter Notebook
 - Full development pipeline from data to model
 - NHANES data integration for Cox PH calibration
 - PubMed paper ingestion and embedding pipeline
