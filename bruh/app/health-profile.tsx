@@ -526,168 +526,171 @@ export default function HealthProfileScreen() {
       <Modal
         visible={editModal !== null}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setEditModal(null)}>
-        <Pressable style={styles.overlay} onPress={() => setEditModal(null)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.kav}>
-            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditModal(null)} />
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
 
-              {/* Sheet header */}
-              <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle} numberOfLines={2}>
-                  {editModal?.field.label}
-                </Text>
-                <Pressable hitSlop={12} onPress={() => setEditModal(null)}>
-                  <Ionicons name="close" size={24} color={colors.black} />
-                </Pressable>
-              </View>
+            {/* Sheet header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle} numberOfLines={2}>
+                {editModal?.field.label}
+              </Text>
+              <Pressable hitSlop={12} onPress={() => setEditModal(null)}>
+                <Ionicons name="close" size={22} color="rgba(0,0,0,0.4)" />
+              </Pressable>
+            </View>
 
-              {/* Option picker (select / sex) */}
-              {(editModal?.type === 'select' || editModal?.type === 'sex') && (
-                <ScrollView
-                  style={styles.optionScroll}
-                  contentContainerStyle={styles.optionList}
-                  showsVerticalScrollIndicator={false}>
-                  {editModal.options.map((opt) => {
-                    const isSelected =
-                      editModal.draft === opt ||
-                      (editModal.type === 'sex' && opt.toLowerCase() === answers.sex);
-                    return (
-                      <Pressable
-                        key={opt}
-                        style={[styles.optionPill, isSelected && styles.optionPillSelected]}
-                        onPress={() => { lightImpact(); selectOption(opt); }}>
-                        <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                          {opt}
-                        </Text>
-                        {isSelected && (
-                          <Ionicons name="checkmark" size={18} color={colors.white} />
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              )}
-
-              {/* Height editor */}
-              {editModal?.type === 'height' && (
-                <View style={styles.inputArea}>
-                  <View style={styles.toggleRow}>
-                    {(['ft', 'm'] as const).map((u) => (
-                      <Pressable
-                        key={u}
-                        style={[styles.toggleChip, editModal.unit === u && styles.toggleChipOn]}
-                        onPress={() => { lightImpact(); setEditModal({ ...editModal, unit: u }); }}>
-                        <Text style={styles.toggleLabel}>
-                          {u === 'ft' ? 'Feet / Inches' : 'Meters'}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {editModal.unit === 'ft' ? (
-                    <View style={styles.rowInputs}>
-                      <View style={[styles.inputShell, styles.halfInput]}>
-                        <TextInput
-                          style={styles.numInput}
-                          value={editModal.feet}
-                          onChangeText={(v) => setEditModal({ ...editModal, feet: v })}
-                          keyboardType="number-pad"
-                          maxLength={1}
-                          placeholder="5"
-                          placeholderTextColor="rgba(0,0,0,0.3)"
-                          autoFocus
-                        />
-                        <Text style={styles.unitLabel}>ft</Text>
+            {/* Option picker (select / sex) */}
+            {(editModal?.type === 'select' || editModal?.type === 'sex') && (
+              <ScrollView
+                style={styles.optionScroll}
+                contentContainerStyle={styles.optionList}
+                showsVerticalScrollIndicator={false}>
+                {editModal.options.map((opt, i) => {
+                  const isSelected =
+                    editModal.draft === opt ||
+                    (editModal.type === 'sex' && opt.toLowerCase() === answers.sex);
+                  return (
+                    <Pressable
+                      key={opt}
+                      style={({ pressed }) => [
+                        styles.optionRow,
+                        i < editModal.options.length - 1 && styles.optionRowBorder,
+                        pressed && styles.optionRowPressed,
+                      ]}
+                      onPress={() => { lightImpact(); selectOption(opt); }}>
+                      <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                        {opt}
+                      </Text>
+                      <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                        {isSelected && <View style={styles.radioDot} />}
                       </View>
-                      <View style={[styles.inputShell, styles.halfInput]}>
-                        <TextInput
-                          style={styles.numInput}
-                          value={editModal.inches}
-                          onChangeText={(v) => setEditModal({ ...editModal, inches: v })}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                          placeholder="10"
-                          placeholderTextColor="rgba(0,0,0,0.3)"
-                        />
-                        <Text style={styles.unitLabel}>in</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.inputShell}>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {/* Height editor */}
+            {editModal?.type === 'height' && (
+              <View style={styles.inputArea}>
+                <View style={styles.toggleRow}>
+                  {(['ft', 'm'] as const).map((u) => (
+                    <Pressable
+                      key={u}
+                      style={[styles.toggleChip, editModal.unit === u && styles.toggleChipOn]}
+                      onPress={() => { lightImpact(); setEditModal({ ...editModal, unit: u }); }}>
+                      <Text style={styles.toggleLabel}>
+                        {u === 'ft' ? 'Feet / Inches' : 'Meters'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {editModal.unit === 'ft' ? (
+                  <View style={styles.rowInputs}>
+                    <View style={[styles.inputShell, styles.halfInput]}>
                       <TextInput
-                        style={[styles.numInput, { flex: 1 }]}
-                        value={editModal.meters}
-                        onChangeText={(v) => setEditModal({ ...editModal, meters: v })}
-                        keyboardType="decimal-pad"
-                        placeholder="1.75"
+                        style={styles.numInput}
+                        value={editModal.feet}
+                        onChangeText={(v) => setEditModal({ ...editModal, feet: v })}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        placeholder="5"
                         placeholderTextColor="rgba(0,0,0,0.3)"
                         autoFocus
                       />
-                      <Text style={styles.unitLabel}>m</Text>
+                      <Text style={styles.unitLabel}>ft</Text>
                     </View>
-                  )}
-                  <Pressable style={styles.saveBtn} onPress={commitEdit}>
-                    <Text style={styles.saveBtnText}>Save & Refresh Prediction</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {/* Weight editor */}
-              {editModal?.type === 'weight' && (
-                <View style={styles.inputArea}>
-                  <View style={styles.toggleRow}>
-                    {(['lb', 'kg'] as const).map((u) => (
-                      <Pressable
-                        key={u}
-                        style={[styles.toggleChip, editModal.unit === u && styles.toggleChipOn]}
-                        onPress={() => { lightImpact(); setEditModal({ ...editModal, unit: u }); }}>
-                        <Text style={styles.toggleLabel}>{u}</Text>
-                      </Pressable>
-                    ))}
+                    <View style={[styles.inputShell, styles.halfInput]}>
+                      <TextInput
+                        style={styles.numInput}
+                        value={editModal.inches}
+                        onChangeText={(v) => setEditModal({ ...editModal, inches: v })}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        placeholder="10"
+                        placeholderTextColor="rgba(0,0,0,0.3)"
+                      />
+                      <Text style={styles.unitLabel}>in</Text>
+                    </View>
                   </View>
+                ) : (
                   <View style={styles.inputShell}>
                     <TextInput
                       style={[styles.numInput, { flex: 1 }]}
-                      value={editModal.draft}
-                      onChangeText={(v) => setEditModal({ ...editModal, draft: v })}
-                      keyboardType="number-pad"
-                      placeholder="140"
+                      value={editModal.meters}
+                      onChangeText={(v) => setEditModal({ ...editModal, meters: v })}
+                      keyboardType="decimal-pad"
+                      placeholder="1.75"
                       placeholderTextColor="rgba(0,0,0,0.3)"
                       autoFocus
                     />
-                    <Text style={styles.unitLabel}>{editModal.unit}</Text>
+                    <Text style={styles.unitLabel}>m</Text>
                   </View>
-                  <Pressable style={styles.saveBtn} onPress={commitEdit}>
-                    <Text style={styles.saveBtnText}>Save & Refresh Prediction</Text>
-                  </Pressable>
-                </View>
-              )}
+                )}
+                <Pressable style={styles.saveBtn} onPress={commitEdit}>
+                  <Text style={styles.saveBtnText}>Save</Text>
+                </Pressable>
+              </View>
+            )}
 
-              {/* Text / number editor */}
-              {(editModal?.type === 'text' || editModal?.type === 'number') && (
-                <View style={styles.inputArea}>
-                  <View style={styles.inputShell}>
-                    <TextInput
-                      style={[styles.numInput, { flex: 1 }]}
-                      value={editModal.draft}
-                      onChangeText={(v) => setEditModal({ ...editModal, draft: v })}
-                      keyboardType={editModal.type === 'number' ? 'number-pad' : 'default'}
-                      placeholder={editModal.field.label}
-                      placeholderTextColor="rgba(0,0,0,0.3)"
-                      autoFocus
-                    />
-                  </View>
-                  <Pressable style={styles.saveBtn} onPress={commitEdit}>
-                    <Text style={styles.saveBtnText}>Save & Refresh Prediction</Text>
-                  </Pressable>
+            {/* Weight editor */}
+            {editModal?.type === 'weight' && (
+              <View style={styles.inputArea}>
+                <View style={styles.toggleRow}>
+                  {(['lb', 'kg'] as const).map((u) => (
+                    <Pressable
+                      key={u}
+                      style={[styles.toggleChip, editModal.unit === u && styles.toggleChipOn]}
+                      onPress={() => { lightImpact(); setEditModal({ ...editModal, unit: u }); }}>
+                      <Text style={styles.toggleLabel}>{u}</Text>
+                    </Pressable>
+                  ))}
                 </View>
-              )}
+                <View style={styles.inputShell}>
+                  <TextInput
+                    style={[styles.numInput, { flex: 1 }]}
+                    value={editModal.draft}
+                    onChangeText={(v) => setEditModal({ ...editModal, draft: v })}
+                    keyboardType="number-pad"
+                    placeholder="140"
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    autoFocus
+                  />
+                  <Text style={styles.unitLabel}>{editModal.unit}</Text>
+                </View>
+                <Pressable style={styles.saveBtn} onPress={commitEdit}>
+                  <Text style={styles.saveBtnText}>Save</Text>
+                </Pressable>
+              </View>
+            )}
 
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
+            {/* Text / number editor */}
+            {(editModal?.type === 'text' || editModal?.type === 'number') && (
+              <View style={styles.inputArea}>
+                <View style={styles.inputShell}>
+                  <TextInput
+                    style={[styles.numInput, { flex: 1 }]}
+                    value={editModal.draft}
+                    onChangeText={(v) => setEditModal({ ...editModal, draft: v })}
+                    keyboardType={editModal.type === 'number' ? 'number-pad' : 'default'}
+                    placeholder={editModal.field.label}
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    autoFocus
+                  />
+                </View>
+                <Pressable style={styles.saveBtn} onPress={commitEdit}>
+                  <Text style={styles.saveBtnText}>Save</Text>
+                </Pressable>
+              </View>
+            )}
+
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -786,53 +789,79 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
   },
   kav: { width: '100%' },
   sheet: {
-    backgroundColor: colors.cream,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.white,
+    borderRadius: 20,
     paddingHorizontal: 20,
-    paddingBottom: 36,
+    paddingBottom: 20,
+    width: '100%',
     maxHeight: '80%',
   },
   sheetHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 18,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    marginBottom: 4,
   },
   sheetTitle: {
     fontFamily: fonts.regular,
-    fontSize: 20,
-    fontWeight: '400',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.black,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
     flex: 1,
+    paddingRight: 8,
   },
 
   // Option picker
-  optionScroll: { maxHeight: 360 },
-  optionList: { gap: 10, paddingBottom: 8 },
-  optionPill: {
+  optionScroll: { maxHeight: 380 },
+  optionList: { paddingBottom: 8 },
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderRadius: radii.sheet,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingVertical: 15,
+    paddingHorizontal: 4,
   },
-  optionPillSelected: { backgroundColor: ACCENT },
+  optionRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  optionRowPressed: { opacity: 0.5 },
   optionText: {
     fontFamily: fonts.regular,
     fontSize: 16,
     color: colors.black,
+    flex: 1,
+    paddingRight: 12,
   },
-  optionTextSelected: { color: colors.white },
+  optionTextSelected: { color: ACCENT, fontWeight: '600' },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  radioCircleSelected: { borderColor: ACCENT },
+  radioDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: ACCENT,
+  },
 
   // Input editors
   inputArea: { gap: 16, paddingBottom: 4 },

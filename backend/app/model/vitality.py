@@ -20,6 +20,7 @@ import math
 from datetime import datetime, timedelta
 from .baseline import get_baseline_life_expectancy
 from .features import clamp
+from .literature import literature_based_prediction
 
 
 def features_to_vitality_params(f: dict) -> dict:
@@ -86,13 +87,22 @@ def features_to_vitality_params(f: dict) -> dict:
     }
 
 
-def vitality_to_prediction(params: dict, current_age: int, sex: str) -> dict:
+def vitality_to_prediction(params: dict, current_age: int, sex: str, features: dict | None = None) -> dict:
     """Convert vitality parameters into a life expectancy prediction.
 
-    Uses the SSA baseline as the anchor, then shifts it by a bounded amount
-    derived from the user's lifestyle scores. Maximum swing: ±12–15 years
-    (Li et al. 2018 Circulation: 14-year gap between 0 vs 5 healthy factors).
+    When features are provided (always the case from the main pipeline), uses
+    the literature-based hazard-ratio model (Approach A) — every coefficient
+    traces to a published study.  The vitality params are still computed and
+    returned in the API response for transparency but are no longer used for
+    the final prediction number.
+
+    Falls back to the original vitality formula only if features are absent
+    (e.g. direct calls from tests that haven't been updated yet).
     """
+    if features is not None:
+        return literature_based_prediction(features, current_age, sex)
+
+    # ── Legacy vitality fallback (no features supplied) ──────────────────────
     y0   = params["y0"]
     zeta = params["zeta"]
     lam  = params["lambda_jump"]
@@ -103,8 +113,8 @@ def vitality_to_prediction(params: dict, current_age: int, sex: str) -> dict:
     AVERAGE_Y0   = 78.0
     AVERAGE_ZETA = -1.0
 
-    y0_delta       = (y0 - AVERAGE_Y0) / AVERAGE_Y0
-    zeta_delta     = (AVERAGE_ZETA - zeta) / abs(AVERAGE_ZETA)
+    y0_delta        = (y0 - AVERAGE_Y0) / AVERAGE_Y0
+    zeta_delta      = (AVERAGE_ZETA - zeta) / abs(AVERAGE_ZETA)
     lifestyle_score = 0.4 * y0_delta - 0.6 * zeta_delta
 
     MAX_BONUS   = 12.0
