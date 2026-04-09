@@ -58,7 +58,7 @@ y(t) = y₀ + ζt + σW(t) + jumps
 
 The model is anchored to real-world data: Li et al. 2018 (Circulation) showed a ~14-year life expectancy gap between people with 0 vs 5 healthy factors. Death Clock's maximum vitality swing is calibrated to this finding.
 
-### Literature-Based Hazard Ratios (Approach A)
+### Literature-Based Hazard Ratios
 
 Every risk factor in Death Clock maps to **specific published studies**:
 
