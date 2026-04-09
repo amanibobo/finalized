@@ -10,11 +10,6 @@ for usage and more:
 
 ---
 
-## Demo Video
-
-
----
-
 ## What is Death Clock?
 
 Death Clock is a longevity prediction engine that estimates your life expectancy based on your lifestyle, health biomarkers, and family history. Unlike generic calculators that ask a handful of questions, Death Clock uses a **29-question lifestyle survey** combined with **actuarial science** and **peer-reviewed epidemiological research** to deliver a personalized prediction.
