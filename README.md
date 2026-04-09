@@ -194,8 +194,3 @@ The notebook covers:
 └── death-clock-v2.ipynb         # Full development notebook
 ```
 
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE)
