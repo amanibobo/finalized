@@ -1,4 +1,4 @@
-# death clock
+# death clock clone for deep24
 
 <p align="center">
   <em>Know your numbers. Change your trajectory.</em>
