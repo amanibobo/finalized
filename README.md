@@ -1,11 +1,8 @@
-demo vid will go here
-
 deathclock clone built for Deep24 bounty. transforms actuarial science into an engaging ios experience asking dozens of health questions, running lifespan calculations based on real mortality research, and delivering predictions through thoughtfully designed ui.
 
 for usage and more:
 
-[project page](https://animate3d.github.io/) , [youtube video](https://arxiv.org/abs/2407.11398) , [figma](https://www.youtube.com/watch?v=qkaeeGzLnY8) , 
-[google colab](https://huggingface.co/datasets/yanqinJiang/MV-Video) , 
+[project page](https://animate3d.github.io/) , [youtube video](https://arxiv.org/abs/2407.11398) , [google colab](https://huggingface.co/datasets/yanqinJiang/MV-Video) , 
 [deep24 bounty submission](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) 
 
 ---
