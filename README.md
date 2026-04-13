@@ -2,7 +2,7 @@ deathclock clone built for Deep24 bounty. transforms actuarial science into an e
 
 for usage and more:
 
-[project page](https://animate3d.github.io/) , [youtube video](https://arxiv.org/abs/2407.11398) , [google colab](https://huggingface.co/datasets/yanqinJiang/MV-Video) , 
+[project page](https://animate3d.github.io/) , [youtube video](https://www.youtube.com/watch?v=gcZebvUNyUc) , [google colab](https://colab.research.google.com/drive/1LfOmQ6AY861dxWszBgUNstbgf2qd_CA2#scrollTo=I0h2Of4Z3uoU) , 
 [deep24 bounty submission](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) 
 
 ---
@@ -40,6 +40,9 @@ y(t) = y₀ + ζt + σW(t) + jumps
 | **λ (lambda)** | Jump hazard — probability of sudden health shocks |
 
 The model is anchored to real-world data: Li et al. 2018 (Circulation) showed a ~14-year life expectancy gap between people with 0 vs 5 healthy factors. Death Clock's maximum vitality swing is calibrated to this finding.
+
+<img width="1189" height="592" alt="image" src="https://github.com/user-attachments/assets/380b5c21-90d2-4303-b1f0-3cecee9c6450" />
+
 
 ### Literature-Based Hazard Ratios
 
@@ -167,4 +170,6 @@ The notebook covers:
 │
 └── death-clock-v2.ipynb         # Full development notebook
 ```
+
+<img width="1389" height="509" alt="image" src="https://github.com/user-attachments/assets/c89f092e-156d-44ae-9944-d2640bbc27f4" />
 
