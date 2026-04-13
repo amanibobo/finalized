@@ -127,6 +127,19 @@ _DISPLAY_OVERRIDES: dict[str, str] = {
 }
 
 
+def resolve_canonical_token(raw: str | None) -> str | None:
+    """Apply display-label overrides (same as score_choice), then snake_case token.
+
+    Use for literature HR lookup so free-text answers match the canonical keys.
+    """
+    if raw is None:
+        return None
+    raw_lower = str(raw).strip().lower()
+    if raw_lower in _DISPLAY_OVERRIDES:
+        raw = _DISPLAY_OVERRIDES[raw_lower]
+    return normalize_answer_label(raw)
+
+
 def score_choice(raw_answer: str, score_map: dict[str, int]) -> int:
     """Convert a raw answer string to its numeric score (0–3).
 

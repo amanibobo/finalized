@@ -76,6 +76,11 @@ class Prediction(BaseModel):
     predicted_death_date: str
     baseline_death_age: float
     years_vs_baseline: float
+    # Approach A (literature HR) — optional for backward compatibility
+    method: str | None = None
+    combined_hr: float | None = None
+    effective_hr: float | None = None
+    hr_breakdown: dict[str, Any] | None = None
 
 
 class PredictResponse(BaseModel):

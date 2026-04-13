@@ -7,13 +7,24 @@ import { lightImpact } from '@/utils/haptics';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 type Unit = 'ft' | 'm';
 
 export default function OnboardingHeightScreen() {
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
   const setAnswers = useOnboardingStore((s) => s.setAnswers);
   const [unit, setUnit] = useState<Unit>('ft');
   const [feet, setFeet] = useState('5');
@@ -39,81 +50,100 @@ export default function OnboardingHeightScreen() {
 
   return (
     <OnboardingScreenWrapper>
-      <View style={styles.flex}>
-        <Animated.View entering={FadeIn.duration(200)} style={styles.headerWrap}>
-          <BasicsHeader title="What is your height?" />
-        </Animated.View>
-        <Animated.View entering={FadeIn.duration(200).delay(80)} style={styles.center}>
-          <View style={styles.centerBlock}>
-            <View style={styles.fieldBlock}>
-            {unit === 'ft' ? (
-              <View style={styles.row}>
-                <View style={[styles.inputShell, styles.half]}>
-                  <TextInput
-                    style={styles.input}
-                    value={feet}
-                    onChangeText={setFeet}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={styles.unit}>ft</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}>
+          <View
+            style={[
+              styles.pageColumn,
+              { minHeight: Math.max(windowHeight - 100, 420) },
+            ]}>
+            <Animated.View entering={FadeIn.duration(200)} style={styles.headerWrap}>
+              <BasicsHeader title="What is your height?" />
+            </Animated.View>
+            <Animated.View entering={FadeIn.duration(200).delay(80)} style={styles.formMiddle}>
+              <View style={styles.centerBlock}>
+                <View style={styles.fieldBlock}>
+                  {unit === 'ft' ? (
+                    <View style={styles.row}>
+                      <View style={[styles.inputShell, styles.half]}>
+                        <TextInput
+                          style={styles.input}
+                          value={feet}
+                          onChangeText={setFeet}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          returnKeyType="next"
+                        />
+                        <Text style={styles.unit}>ft</Text>
+                      </View>
+                      <View style={[styles.inputShell, styles.half]}>
+                        <TextInput
+                          style={styles.input}
+                          value={inches}
+                          onChangeText={setInches}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          returnKeyType="done"
+                        />
+                        <Text style={styles.unit}>in</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.inputShell}>
+                      <TextInput
+                        style={styles.input}
+                        value={meters}
+                        onChangeText={setMeters}
+                        keyboardType="decimal-pad"
+                        returnKeyType="done"
+                      />
+                      <Text style={styles.unit}>m</Text>
+                    </View>
+                  )}
+                  <View style={styles.toggleRow}>
+                    <Pressable
+                      onPress={setUnitFt}
+                      style={[styles.toggleChip, unit === 'ft' && styles.toggleOn]}>
+                      <Text style={styles.toggleLabel}>Feet</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={setUnitM}
+                      style={[styles.toggleChip, unit === 'm' && styles.toggleOn]}>
+                      <Text style={styles.toggleLabel}>Meters</Text>
+                    </Pressable>
+                  </View>
                 </View>
-                <View style={[styles.inputShell, styles.half]}>
-                  <TextInput
-                    style={styles.input}
-                    value={inches}
-                    onChangeText={setInches}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={styles.unit}>in</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.inputShell}>
-                <TextInput
-                  style={styles.input}
-                  value={meters}
-                  onChangeText={setMeters}
-                  keyboardType="decimal-pad"
+                <View style={styles.gapBeforeContinue} />
+                <ContinueButton
+                  onPress={() => {
+                    if (unit === 'ft') {
+                      setAnswers({
+                        height_value: [parseInt(feet, 10), parseInt(inches, 10)],
+                        height_unit: 'ft_in',
+                      });
+                    } else {
+                      setAnswers({
+                        height_value: parseFloat(meters),
+                        height_unit: 'm',
+                      });
+                    }
+                    router.push('/onboarding/weight');
+                  }}
+                  disabled={!canContinue}
                 />
-                <Text style={styles.unit}>m</Text>
               </View>
-            )}
-            <View style={styles.toggleRow}>
-              <Pressable
-                onPress={setUnitFt}
-                style={[styles.toggleChip, unit === 'ft' && styles.toggleOn]}>
-                <Text style={styles.toggleLabel}>Feet</Text>
-              </Pressable>
-              <Pressable
-                onPress={setUnitM}
-                style={[styles.toggleChip, unit === 'm' && styles.toggleOn]}>
-                <Text style={styles.toggleLabel}>Meters</Text>
-              </Pressable>
-            </View>
-            </View>
-            <View style={styles.gapBeforeContinue} />
-            <ContinueButton
-              onPress={() => {
-                if (unit === 'ft') {
-                  setAnswers({
-                    height_value: [parseInt(feet, 10), parseInt(inches, 10)],
-                    height_unit: 'ft_in',
-                  });
-                } else {
-                  setAnswers({
-                    height_value: parseFloat(meters),
-                    height_unit: 'm',
-                  });
-                }
-                router.push('/onboarding/weight');
-              }}
-              disabled={!canContinue}
-            />
+            </Animated.View>
           </View>
-        </Animated.View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </OnboardingScreenWrapper>
   );
 }
@@ -123,10 +153,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  center: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+  pageColumn: {
+    flexGrow: 1,
+    width: '100%',
+  },
+  formMiddle: {
+    flexGrow: 1,
+    width: '100%',
     justifyContent: 'center',
-    minHeight: 0,
   },
   centerBlock: {
     width: '100%',

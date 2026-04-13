@@ -7,13 +7,24 @@ import { lightImpact } from '@/utils/haptics';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 type Unit = 'lb' | 'kg';
 
 export default function OnboardingWeightScreen() {
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
   const setAnswers = useOnboardingStore((s) => s.setAnswers);
   const [unit, setUnit] = useState<Unit>('lb');
   const [pounds, setPounds] = useState('140');
@@ -36,49 +47,68 @@ export default function OnboardingWeightScreen() {
 
   return (
     <OnboardingScreenWrapper>
-      <View style={styles.flex}>
-        <Animated.View entering={FadeIn.duration(200)} style={styles.headerWrap}>
-          <BasicsHeader title="What is your weight?" />
-        </Animated.View>
-        <Animated.View entering={FadeIn.duration(200).delay(80)} style={styles.center}>
-          <View style={styles.centerBlock}>
-            <View style={styles.fieldBlock}>
-            <View style={styles.inputShell}>
-              <TextInput
-                style={styles.input}
-                value={value}
-                onChangeText={setValue}
-                keyboardType="decimal-pad"
-              />
-              <Text style={styles.unit}>{unit === 'lb' ? 'lbs' : 'kg'}</Text>
-            </View>
-            <View style={styles.toggleRow}>
-              <Pressable
-                onPress={setUnitLb}
-                style={[styles.toggleChip, unit === 'lb' && styles.toggleOn]}>
-                <Text style={styles.toggleLabel}>Pounds</Text>
-              </Pressable>
-              <Pressable
-                onPress={setUnitKg}
-                style={[styles.toggleChip, unit === 'kg' && styles.toggleOn]}>
-                <Text style={styles.toggleLabel}>Kilograms</Text>
-              </Pressable>
-            </View>
-            </View>
-            <View style={styles.gapBeforeContinue} />
-            <ContinueButton
-              onPress={() => {
-                setAnswers({
-                  weight_value: parseFloat(value),
-                  weight_unit: unit,
-                });
-                router.push('/onboarding/first-name');
-              }}
-              disabled={!canContinue}
-            />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}>
+          <View
+            style={[
+              styles.pageColumn,
+              { minHeight: Math.max(windowHeight - 100, 420) },
+            ]}>
+            <Animated.View entering={FadeIn.duration(200)} style={styles.headerWrap}>
+              <BasicsHeader title="What is your weight?" />
+            </Animated.View>
+            <Animated.View
+              entering={FadeIn.duration(200).delay(80)}
+              style={styles.formMiddle}>
+              <View style={styles.centerBlock}>
+                <View style={styles.fieldBlock}>
+                  <View style={styles.inputShell}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={setValue}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.unit}>{unit === 'lb' ? 'lbs' : 'kg'}</Text>
+                  </View>
+                  <View style={styles.toggleRow}>
+                    <Pressable
+                      onPress={setUnitLb}
+                      style={[styles.toggleChip, unit === 'lb' && styles.toggleOn]}>
+                      <Text style={styles.toggleLabel}>Pounds</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={setUnitKg}
+                      style={[styles.toggleChip, unit === 'kg' && styles.toggleOn]}>
+                      <Text style={styles.toggleLabel}>Kilograms</Text>
+                    </Pressable>
+                  </View>
+                </View>
+                <View style={styles.gapBeforeContinue} />
+                <ContinueButton
+                  onPress={() => {
+                    setAnswers({
+                      weight_value: parseFloat(value),
+                      weight_unit: unit,
+                    });
+                    router.push('/onboarding/first-name');
+                  }}
+                  disabled={!canContinue}
+                />
+              </View>
+            </Animated.View>
           </View>
-        </Animated.View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </OnboardingScreenWrapper>
   );
 }
@@ -88,10 +118,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  center: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+  pageColumn: {
+    flexGrow: 1,
+    width: '100%',
+  },
+  formMiddle: {
+    flexGrow: 1,
+    width: '100%',
     justifyContent: 'center',
-    minHeight: 0,
   },
   centerBlock: {
     width: '100%',

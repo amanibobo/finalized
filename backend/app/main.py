@@ -75,7 +75,7 @@ def _run_prediction(answers: dict) -> tuple[dict, dict, dict]:
         features   = questionnaire_to_features(answers)
         sex        = "male" if features["sex_male"] == 1 else "female"
         params     = features_to_vitality_params(features)
-        prediction = vitality_to_prediction(params, features["age"], sex, features=features)
+        prediction = vitality_to_prediction(params, features["age"], sex, answers=answers)
         return features, params, prediction
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

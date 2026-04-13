@@ -1,250 +1,238 @@
 """Literature-based hazard ratio prediction (Approach A).
 
-Every HR in LITERATURE_HRS is traced to a specific published study.
-Score semantics match SCORE_MAPS in questionnaire.py — check the direction
-note above each entry (higher = better OR higher = worse).
+Each HR maps to a published study (see source strings).  Combined HR follows
+Cox proportional hazards intuition: HR_total ≈ Π HR_i, then raised to 0.65 to
+partially correct for correlated risk factors.  Remaining life is scaled from
+the SSA baseline; year adjustment is clamped to epidemiologically plausible bounds.
 
-Combined HR is raised to the 0.65 power before use.  This partial-adjustment
-exponent compresses the product of many near-independent HRs, accounting for
-the fact that risk factors are correlated in real populations (a smoker is
-more likely to be sedentary, drink heavily, etc.).  The approach is described
-in Ezzati et al. 2002 (Lancet) and used in GBD attributable-burden work.
-
-Prediction formula:
-    adjusted_remaining ≈ baseline_remaining / combined_hr_adjusted
-    predicted_death_age = current_age + adjusted_remaining
+This module matches the death-clock-v2 notebook “Approach A” specification.
 """
 
+from __future__ import annotations
+
 import math
+from datetime import datetime, timedelta
+from typing import Any
+
 from .baseline import get_baseline_life_expectancy
-from .features import clamp
+from .features import clamp, normalize_questionnaire, resolve_canonical_token
 
-# ── Literature hazard-ratio table ────────────────────────────────────────────
-# Each key is a feature score field name.
-# Each value maps integer score → HR, where HR 1.0 = no effect on mortality,
-# HR < 1.0 = protective, HR > 1.0 = harmful.
-# Score direction is noted per entry.
+# ── Literature hazard-ratio table (answer token → HR + citation) ──────────────
+# Reference category HR = 1.0 per factor where applicable.
 
-LITERATURE_HRS: dict[str, dict[int, float]] = {
-
-    # ── Exercise ─────────────────────────────────────────────────────────────
-
-    # Arem et al. 2015, JAMA Intern Med — leisure-time physical activity & mortality
-    # score 0 = no cardio (reference), score 3 = >300 min/wk (most protective)
-    "cardio_score": {0: 1.00, 1: 0.86, 2: 0.69, 3: 0.65},
-
-    # Stamatakis et al. 2018, Am J Epidemiol — muscle-strengthening activity & mortality
-    # score 0 = never, score 3 = >2×/wk
-    "weights_score": {0: 1.00, 1: 0.88, 2: 0.82, 3: 0.77},
-
-    # General flexibility/mobility literature; modest independent effect
-    # score 0 = never, score 3 = 3+×/wk
-    "stretch_score": {0: 1.00, 1: 0.97, 2: 0.95, 3: 0.93},
-
-    # Biswas et al. 2015, Ann Intern Med — sedentary time & mortality
-    # score 0 = <2h/day (best), score 3 = >8h/day (worst)
-    "sitting_score": {0: 1.00, 1: 1.12, 2: 1.22, 3: 1.34},
-
-    # ── Diet ─────────────────────────────────────────────────────────────────
-
-    # Wang et al. 2014, BMJ — fruit & vegetable consumption & mortality
-    # score 0 = rarely/never, score 3 = 5+ servings/day
-    "fruitveg_score": {0: 1.00, 1: 0.90, 2: 0.85, 3: 0.78},
-
-    # Srour et al. 2019, BMJ — ultra-processed food consumption & mortality
-    # score 0 = rarely (best), score 3 = daily (worst)
-    "processed_food_score": {0: 1.00, 1: 1.06, 2: 1.14, 3: 1.26},
-
-    # Yang et al. 2014, JAMA Intern Med — added sugar & cardiovascular mortality
-    # score 0 = none (best), score 3 = several times/day (worst)
-    "sugar_score": {0: 1.00, 1: 1.08, 2: 1.20, 3: 1.38},
-
-    # Adequate hydration; effect modest and largely confounded with overall health
-    # score 0 = <1 glass/day, score 3 = 10+ glasses/day
-    "water_score": {0: 1.04, 1: 1.01, 2: 1.00, 3: 0.98},
-
-    # ── Sleep ────────────────────────────────────────────────────────────────
-
-    # Cappuccio et al. 2010, Sleep — short sleep & all-cause mortality (meta-analysis)
-    # score 0 = never get 7h (worst), score 3 = 5+ nights/wk (best)
-    "sleep_duration_score": {0: 1.30, 1: 1.16, 2: 1.06, 3: 1.00},
-
-    # Léger et al. 2014, Sleep — insomnia symptoms & mortality
-    # score 0 = never troubled (best), score 3 = 5+ nights/wk (worst)
-    "sleep_disturbance_score": {0: 1.00, 1: 1.07, 2: 1.18, 3: 1.32},
-
-    # ── Substance use ────────────────────────────────────────────────────────
-
-    # Jha et al. 2013, NEJM — smoking & mortality; Pirie et al. 2013 Lancet (women)
-    # score 0 = never used (best), score 3 = current daily user (worst)
-    "nicotine_score": {0: 1.00, 1: 1.22, 2: 1.58, 3: 2.80},
-
-    # GBD 2016 Alcohol Collaborators, Lancet — alcohol use & health loss
-    # score 0 = don't drink, score 3 = 15+ drinks/wk
-    "alcohol_score": {0: 1.00, 1: 1.05, 2: 1.22, 3: 1.50},
-
-    # ── Clinical / biomarkers ────────────────────────────────────────────────
-
-    # Lewington et al. 2002, Lancet — blood pressure & vascular mortality (meta-analysis)
-    # score 0 = normal <120/80, score 3 = ≥140/90 hypertension
-    "bp_score": {0: 1.00, 1: 1.12, 2: 1.38, 3: 1.85},
-
-    # Ference et al. 2017, Eur Heart J — LDL & cardiovascular mortality
-    # score 0 = optimal <100 mg/dL, score 3 = ≥160 mg/dL
-    "ldl_score": {0: 1.00, 1: 1.15, 2: 1.40, 3: 1.78},
-
-    # Seshasai et al. 2011, NEJM — diabetes & vascular mortality (meta-analysis)
-    # score 0 = normal <100 mg/dL, score 3 = ≥126 mg/dL (diabetes)
-    "glucose_score": {0: 1.00, 1: 1.18, 2: 1.52, 3: 1.92},
-
-    # Guh et al. 2009, BMC Public Health — overweight/obesity & comorbidities
-    # Di Angelantonio et al. 2016, Lancet — BMI & mortality
-    # score 0 = healthy weight, score 3 = obese
-    "overweight_score": {0: 1.00, 1: 1.10, 2: 1.24, 3: 1.58},
-
-    # Overall comorbidity burden proxy (chronic disease self-report)
-    # Gijsen et al. 2001, Eur J Public Health; general multimorbidity literature
-    # score 0 = no chronic disease, score 3 = confirmed chronic disease(s)
-    "chronic_disease_score": {0: 1.00, 1: 1.28, 2: 1.65, 3: 2.20},
-
-    # ── Mental health & stress ───────────────────────────────────────────────
-
-    # Kivimäki et al. 2012, Lancet — work stress & CHD; Steptoe & Kivimäki 2012
-    # score 0 = rarely stressed, score 3 = almost always stressed
-    "stress_score": {0: 1.00, 1: 1.10, 2: 1.22, 3: 1.40},
-
-    # Walker et al. 2015, World Psychiatry — mental illness & mortality
-    # score 0 = no impact, score 3 = severe impact on well-being
-    "mental_health_score": {0: 1.00, 1: 1.10, 2: 1.27, 3: 1.58},
-
-    # ── Social & community ────────────────────────────────────────────────────
-
-    # Holt-Lunstad et al. 2010, PLoS Med — social relationships & mortality (meta-analysis)
-    # score 0 = not supportive, score 3 = completely supportive
-    "support_score": {0: 1.45, 1: 1.22, 2: 1.07, 3: 1.00},
-
-    # Holt-Lunstad et al. 2015, Perspect Psychol Sci — social isolation & mortality
-    # score 0 = never spend time with friends/family, score 3 = daily
-    "community_time_score": {0: 1.32, 1: 1.16, 2: 1.05, 3: 1.00},
-
-    # Kiecolt-Glaser & Newton 2001, Psychol Bull — marriage/relationship & health
-    # score 0 = single, score 3 = married or long-term relationship
-    "relationship_score": {0: 1.20, 1: 1.25, 2: 1.05, 3: 1.00},
-
-    # ── Family history ────────────────────────────────────────────────────────
-
-    # Gavrilova & Gavrilov 2015, J Aging Res — parental longevity & offspring survival
-    # score 0 = grandparents died <70, score 3 = 90+
-    "grandparent_longevity_score": {0: 1.28, 1: 1.10, 2: 0.95, 3: 0.84},
-
-    # ── Healthcare engagement ────────────────────────────────────────────────
-
-    # Krogsbøll et al. 2012, Cochrane — general health checks & mortality
-    # Modest effect; mainly captures selection into screening programs
-    # score 0 = never, score 3 = yearly
-    "checkup_score": {0: 1.06, 1: 1.03, 2: 1.01, 3: 0.97},
-
-    # Berry et al. 2005, NEJM — cancer screening & mortality benefit
-    # score 0 = never screened, score 3 = as recommended
-    "screening_score": {0: 1.09, 1: 1.05, 2: 1.02, 3: 0.97},
-
-    # ── Socioeconomic ────────────────────────────────────────────────────────
-
-    # Chetty et al. 2016, JAMA — income & life expectancy
-    # score 0 = <$75k, score 3 = >$500k
-    "income_score": {0: 1.22, 1: 1.10, 2: 1.03, 3: 1.00},
+LITERATURE_HRS: dict[str, dict[str, dict[str, Any]]] = {
+    "nicotine": {
+        "never_used":              {"hr": 1.00, "source": "Li 2018 Circulation"},
+        "former_user":             {"hr": 1.25, "source": "Li 2018; risk declines ~10yr post-quit"},
+        "current_occasional_user": {"hr": 1.56, "source": "Li 2018; 1-14 cigs/day"},
+        "current_daily_user":      {"hr": 2.10, "source": "Jha 2013 NEJM; 15+ cigs/day"},
+    },
+    "alcohol": {
+        "dont_drink":                 {"hr": 1.05, "source": "Wood 2018 Lancet; slight J-curve"},
+        "1_7_drinks_per_week":        {"hr": 1.00, "source": "Wood 2018; reference (moderate)"},
+        "8_14_drinks_per_week":       {"hr": 1.15, "source": "Wood 2018; 100-200g/wk"},
+        "15_or_more_drinks_per_week": {"hr": 1.35, "source": "Wood 2018; 350g+/wk"},
+    },
+    "exercise_cardio": {
+        "rarely_or_never":        {"hr": 1.00, "source": "Arem 2015 JAMA IM; reference=inactive"},
+        "less_than_150_minutes":  {"hr": 0.80, "source": "Arem 2015; some activity, 20% reduction"},
+        "150_to_300_minutes":     {"hr": 0.69, "source": "Arem 2015; meets guidelines"},
+        "more_than_300_minutes":  {"hr": 0.63, "source": "Arem 2015; 3-5x guidelines"},
+    },
+    "exercise_weights": {
+        "rarely_or_never":            {"hr": 1.00, "source": "Momma 2022 BJSM; reference"},
+        "less_than_once_a_week":      {"hr": 0.95, "source": "Momma 2022; minimal benefit"},
+        "one_to_two_days_per_week":   {"hr": 0.85, "source": "Momma 2022; 10-17% reduction"},
+        "more_than_two_days_per_week": {"hr": 0.83, "source": "Momma 2022; optimal"},
+    },
+    "exercise_sitting": {
+        "less_than_2_hours":   {"hr": 1.00, "source": "Ekelund 2016 Lancet; reference"},
+        "two_to_four_hours":   {"hr": 1.02, "source": "Ekelund 2016"},
+        "four_to_eight_hours": {"hr": 1.12, "source": "Ekelund 2016"},
+        "more_than_8_hours":   {"hr": 1.27, "source": "Ekelund 2016; 8+ hrs/day"},
+    },
+    "diet_fruits_veggies": {
+        "rarely_or_never":             {"hr": 1.00, "source": "Aune 2017 IJE; reference"},
+        "several_times_a_week":        {"hr": 0.92, "source": "Aune 2017; ~200g/day"},
+        "daily":                       {"hr": 0.82, "source": "Aune 2017; ~400g/day"},
+        "five_or_more_servings_a_day": {"hr": 0.69, "source": "Aune 2017; 800g/day peak"},
+    },
+    "diet_processed_foods": {
+        "rarely_or_never":              {"hr": 1.00, "source": "Lane 2024 BMJ; reference"},
+        "once_a_week":                  {"hr": 1.05, "source": "Lane 2024; modest increase"},
+        "several_times_a_week_or_more": {"hr": 1.12, "source": "Lane 2024; regular consumption"},
+        "daily":                        {"hr": 1.21, "source": "Lane 2024; daily UPF"},
+    },
+    "diet_sugar": {
+        "none":                       {"hr": 1.00, "source": "Huang 2023 BMJ; reference"},
+        "just_a_few_treats_a_week":   {"hr": 1.03, "source": "Huang 2023; minimal"},
+        "daily_sweet_treat":          {"hr": 1.10, "source": "Huang 2023; moderate"},
+        "sweets_several_times_a_day": {"hr": 1.18, "source": "Huang 2023; high sugar"},
+    },
+    "sleep_duration": {
+        "five_or_more_nights_per_week":  {"hr": 1.00, "source": "Cappuccio 2010 Sleep; 7-8h ref"},
+        "three_to_four_nights_per_week": {"hr": 1.06, "source": "Cappuccio 2010; moderate deficit"},
+        "one_to_two_nights_per_week":    {"hr": 1.12, "source": "Cappuccio 2010; frequent short"},
+        "never":                         {"hr": 1.24, "source": "Cappuccio 2010; chronic <6h"},
+    },
+    "sleep_trouble": {
+        "never":                         {"hr": 1.00, "source": "Itani 2017 Sleep Med Rev"},
+        "one_to_two_nights_per_week":    {"hr": 1.05, "source": "Itani 2017; occasional"},
+        "three_to_four_nights_per_week": {"hr": 1.12, "source": "Itani 2017; frequent"},
+        "five_or_more_nights_per_week":  {"hr": 1.20, "source": "Itani 2017; chronic insomnia"},
+    },
+    "social_support": {
+        "not_supportive":        {"hr": 1.00, "source": "Holt-Lunstad 2010 PLOS Med; reference"},
+        "slightly_supportive":   {"hr": 0.93, "source": "Holt-Lunstad 2010"},
+        "fairly_supportive":     {"hr": 0.86, "source": "Holt-Lunstad 2010"},
+        "completely_supportive": {"hr": 0.81, "source": "Holt-Lunstad 2010; strong ties"},
+    },
+    "community_time": {
+        "never":               {"hr": 1.00, "source": "Holt-Lunstad 2015; socially isolated ref"},
+        "a_few_times_a_month": {"hr": 0.91, "source": "Holt-Lunstad 2015"},
+        "weekly":              {"hr": 0.85, "source": "Holt-Lunstad 2015"},
+        "daily":               {"hr": 0.80, "source": "Holt-Lunstad 2015; strong connection"},
+    },
+    "blood_pressure": {
+        "below_120_80_normal":       {"hr": 1.00, "source": "Lewington 2002 Lancet"},
+        "i_dont_know":               {"hr": 1.08, "source": "Imputed: population average"},
+        "120_80_to_139_89_elevated": {"hr": 1.20, "source": "Lewington 2002; prehypertension"},
+        "140_90_or_higher_high":     {"hr": 1.60, "source": "Lewington 2002; stage 2 HTN"},
+    },
+    "glucose": {
+        "below_100_normal":       {"hr": 1.00, "source": "ERFC 2010 Lancet"},
+        "i_dont_know":            {"hr": 1.10, "source": "Imputed: population average"},
+        "100_125_prediabetes":    {"hr": 1.25, "source": "ERFC 2010; impaired fasting glucose"},
+        "126_or_higher_diabetes": {"hr": 1.80, "source": "ERFC 2010; diagnosed diabetes"},
+    },
+    "ldl": {
+        "below_100_optimal":       {"hr": 1.00, "source": "ERFC 2009 Lancet"},
+        "i_dont_know":             {"hr": 1.05, "source": "Imputed: population average"},
+        "100_159_borderline_high": {"hr": 1.15, "source": "ERFC 2009; borderline"},
+        "160_or_higher_high":      {"hr": 1.30, "source": "ERFC 2009; high LDL"},
+    },
+    "stress": {
+        "rarely_or_never":     {"hr": 1.00, "source": "Russ 2012 BMJ"},
+        "occasionally":        {"hr": 1.06, "source": "Russ 2012; mild distress"},
+        "frequently":          {"hr": 1.21, "source": "Russ 2012; moderate distress"},
+        "almost_all_the_time": {"hr": 1.43, "source": "Russ 2012; high psychological distress"},
+    },
+    "mental_health_impact": {
+        "not_at_all": {"hr": 1.00, "source": "Russ 2012 BMJ"},
+        "mildly":     {"hr": 1.08, "source": "Russ 2012"},
+        "moderately": {"hr": 1.25, "source": "Russ 2012"},
+        "severely":   {"hr": 1.50, "source": "Russ 2012; high GHQ score"},
+    },
+    "chronic_disease": {
+        "no":                                {"hr": 1.00, "source": "DuGoff 2014 Med Care"},
+        "im_not_sure":                       {"hr": 1.08, "source": "Imputed uncertainty"},
+        "risk_factors_for_chronic_diseases": {"hr": 1.25, "source": "DuGoff 2014; risk factors"},
+        "yes":                               {"hr": 1.60, "source": "DuGoff 2014; 2+ conditions"},
+    },
+    "overweight": {
+        "no":                  {"hr": 1.00, "source": "GBMC 2016 Lancet; BMI 20-25"},
+        "a_little_overweight": {"hr": 1.05, "source": "GBMC 2016; BMI 25-27.5"},
+        "overweight":          {"hr": 1.11, "source": "GBMC 2016; BMI 27.5-30"},
+        "obese":               {"hr": 1.44, "source": "GBMC 2016; BMI 30-35"},
+    },
+    "grandparents_max_age": {
+        "under_70": {"hr": 1.15, "source": "Dutta 2014; early parental death"},
+        "70_79":    {"hr": 1.00, "source": "Dutta 2014; average"},
+        "80_89":    {"hr": 0.92, "source": "Dutta 2014; above-average longevity"},
+        "90_plus":  {"hr": 0.82, "source": "Murabito 2012; familial longevity"},
+    },
+    "cancer_screenings": {
+        "never":                          {"hr": 1.00, "source": "Liss 2019 Ann IM; reference"},
+        "once_or_twice":                  {"hr": 0.97, "source": "Liss 2019; some screening"},
+        "sometimes_but_not_consistently": {"hr": 0.94, "source": "Liss 2019; moderate"},
+        "as_recommended":                 {"hr": 0.90, "source": "Liss 2019; full adherence"},
+    },
+    "checkups": {
+        "never":                    {"hr": 1.00, "source": "Boulware 2007; reference"},
+        "every_five_years":         {"hr": 0.97, "source": "Boulware 2007; infrequent"},
+        "every_two_to_three_years": {"hr": 0.95, "source": "Boulware 2007; regular"},
+        "yearly":                   {"hr": 0.92, "source": "Boulware 2007; annual"},
+    },
 }
 
-# ── Confounding-correction exponent ──────────────────────────────────────────
-# Risk factors are correlated (smokers tend to exercise less, drink more, etc.)
-# Raising the combined HR to this power partially corrects for double-counting.
-# Value 0.65 is consistent with Ezzati et al. 2002 and GBD attributable-burden
-# methodology.
+# Partial confounding correction (notebook Approach A)
 CONFOUNDING_EXPONENT = 0.65
 
-# ── Per-factor HR caps ────────────────────────────────────────────────────────
-_HR_FACTOR_CAP   = 3.0   # single factor can't contribute more than HR=3 harmful
-_HR_FACTOR_FLOOR = 0.50  # single factor can't be more than HR=0.5 protective
+# Epidemiological swing limits on year adjustment vs SSA baseline (notebook)
+YEAR_ADJUSTMENT_MIN = -15.0
+YEAR_ADJUSTMENT_MAX = 12.0
 
-# ── Population reference HR ───────────────────────────────────────────────────
-# The SSA life tables already embed average American mortality, so HRs relative
-# to "perfect lifestyle" will make an average person appear to die earlier than
-# the SSA baseline.  We correct by dividing user_hr by this reference constant,
-# so that a person with average habits predicts exactly at the SSA baseline.
-#
-# POPULATION_REFERENCE_HR = combined HR of an average American with mixed-but-
-# typical scores (150-300 min cardio, occasional junk food, mild stress, a bit
-# overweight, yearly checkups, etc.) — computed empirically: 1.377.
-POPULATION_REFERENCE_HR = 1.377
-
-# ── Final effective HR bounds ─────────────────────────────────────────────────
-# After dividing by the reference, bound the effective HR so predictions stay
-# in the realistic range described in the design doc:
-#   - Best-case (Healthy Hana, 25F): predicted ~91-93
-#   - Worst-case (Risky Rick, 55M, smoker+diabetic+obese): predicted ~65-68
-# Cap  2.3 → worst case lives 1/2.3 ≈ 43% of SSA remaining years
-# Floor 0.60 → best case lives 1/0.60 ≈ 167% of SSA remaining years
-#              (the global age-97 ceiling in prediction handles true extremes)
-_HR_EFFECTIVE_CAP   = 2.3
-_HR_EFFECTIVE_FLOOR = 0.60
+# Hard ceiling on predicted death age (align with prior engine)
+MAX_PREDICTED_DEATH_AGE = 97.0
 
 
-def compute_combined_hr(features: dict) -> float:
-    """Multiply per-factor HRs, apply the confounding exponent, calibrate.
+def _lookup_hr(levels: dict[str, dict[str, Any]], token: str | None) -> tuple[float, str, str]:
+    """Return (hr, source, matched_key_or_token)."""
+    if not token:
+        return 1.0, "missing", ""
 
-    Returns the effective hazard ratio relative to the SSA population average.
-    A value of 1.0 means the user is expected to live exactly as long as the
-    SSA actuarial baseline for their age/sex.
-    """
+    if token in levels:
+        row = levels[token]
+        return float(row["hr"]), str(row.get("source", "")), token
+
+    for k, row in levels.items():
+        if k in token or token in k:
+            return float(row["hr"]), str(row.get("source", "")), k
+
+    return 1.0, "no match", token
+
+
+def compute_combined_hr(normalized_answers: dict) -> tuple[float, dict[str, dict[str, Any]]]:
+    """Multiply applicable literature HRs.  Returns (product, per-factor breakdown)."""
     combined = 1.0
-    for field, hr_map in LITERATURE_HRS.items():
-        score = int(features.get(field, 0))
-        hr = hr_map.get(score, 1.0)
-        hr = clamp(hr, _HR_FACTOR_FLOOR, _HR_FACTOR_CAP)
+    breakdown: dict[str, dict[str, Any]] = {}
+
+    for factor_name, levels in LITERATURE_HRS.items():
+        raw = normalized_answers.get(factor_name)
+        if raw is None:
+            continue
+
+        token = resolve_canonical_token(str(raw))
+        if token is None:
+            continue
+
+        hr, src, matched = _lookup_hr(levels, token)
+        breakdown[factor_name] = {
+            "answer":       token,
+            "matched_key":  matched,
+            "hr":           hr,
+            "source":       src,
+        }
         combined *= hr
 
-    # Apply confounding correction
-    adjusted = combined ** CONFOUNDING_EXPONENT
-
-    # Calibrate: divide by the population reference so average → HR 1.0
-    effective = adjusted / POPULATION_REFERENCE_HR
-
-    return clamp(effective, _HR_EFFECTIVE_FLOOR, _HR_EFFECTIVE_CAP)
+    return combined, breakdown
 
 
-def literature_based_prediction(features: dict, current_age: int, sex: str) -> dict:
-    """Literature HR-based life expectancy prediction.
-
-    Anchors to the SSA actuarial baseline, then scales remaining life by the
-    combined adjusted hazard ratio derived from published epidemiological data.
-
-    Returns the same dict shape as vitality_to_prediction() so the two are
-    drop-in replacements.
-    """
-    from datetime import datetime, timedelta
+def literature_based_prediction(answers: dict, current_age: int, sex: str) -> dict:
+    """SSA baseline + literature HR product (Approach A), notebook-aligned."""
+    norm = normalize_questionnaire(answers)
 
     baseline_remaining = get_baseline_life_expectancy(current_age, sex)
     baseline_death_age = current_age + baseline_remaining
 
-    combined_hr = compute_combined_hr(features)
-
-    # Core formula: adjusted remaining life ≈ baseline / combined_hr
-    adjusted_remaining = baseline_remaining / combined_hr
+    combined_hr, hr_breakdown = compute_combined_hr(norm)
+    effective_hr = combined_hr ** CONFOUNDING_EXPONENT
+    adjusted_remaining = baseline_remaining / effective_hr
     year_adjustment = adjusted_remaining - baseline_remaining
+    year_adjustment = clamp(year_adjustment, YEAR_ADJUSTMENT_MIN, YEAR_ADJUSTMENT_MAX)
 
-    # Hard cap: never predict death in the past, never exceed 97
-    predicted_death_age = clamp(current_age + adjusted_remaining, current_age + 1, 97)
+    predicted_death_age = baseline_death_age + year_adjustment
+    predicted_death_age = clamp(predicted_death_age, current_age + 1, MAX_PREDICTED_DEATH_AGE)
     remaining_years = predicted_death_age - current_age
-    year_adjustment = predicted_death_age - baseline_death_age
 
     death_date = datetime.now() + timedelta(days=remaining_years * 365.25)
 
-    # Lifestyle score: normalised HR position on a -1…+1 scale for display
-    # HR=1.0 → 0.0, HR>1.0 → negative, HR<1.0 → positive
-    lifestyle_score = round(-math.log(combined_hr) / 2.0, 3)
+    # Display score: HR>1 worse → negative, HR<1 better → positive
+    lifestyle_score = round(-math.log(max(effective_hr, 1e-9)) / 2.0, 3)
     lifestyle_score = clamp(lifestyle_score, -1.0, 1.0)
 
     return {
+        "method":               "approach_a_literature",
         "lifestyle_score":      lifestyle_score,
         "year_adjustment":      round(year_adjustment, 1),
         "remaining_years":      round(remaining_years, 1),
@@ -252,4 +240,7 @@ def literature_based_prediction(features: dict, current_age: int, sex: str) -> d
         "predicted_death_date": death_date.strftime("%B %d, %Y"),
         "baseline_death_age":   round(baseline_death_age, 1),
         "years_vs_baseline":    round(year_adjustment, 1),
+        "combined_hr":          round(combined_hr, 4),
+        "effective_hr":         round(effective_hr, 4),
+        "hr_breakdown":         hr_breakdown,
     }

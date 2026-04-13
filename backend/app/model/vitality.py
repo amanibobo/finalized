@@ -87,22 +87,25 @@ def features_to_vitality_params(f: dict) -> dict:
     }
 
 
-def vitality_to_prediction(params: dict, current_age: int, sex: str, features: dict | None = None) -> dict:
+def vitality_to_prediction(
+    params: dict,
+    current_age: int,
+    sex: str,
+    answers: dict | None = None,
+) -> dict:
     """Convert vitality parameters into a life expectancy prediction.
 
-    When features are provided (always the case from the main pipeline), uses
-    the literature-based hazard-ratio model (Approach A) — every coefficient
-    traces to a published study.  The vitality params are still computed and
-    returned in the API response for transparency but are no longer used for
-    the final prediction number.
+    When ``answers`` are provided (main API pipeline), uses Approach A:
+    literature-anchored hazard ratios + SSA baseline (see ``literature.py``).
+    Vitality params are still returned for transparency but do not set the
+    headline predicted death age.
 
-    Falls back to the original vitality formula only if features are absent
-    (e.g. direct calls from tests that haven't been updated yet).
+    Falls back to the legacy vitality formula only if ``answers`` is omitted.
     """
-    if features is not None:
-        return literature_based_prediction(features, current_age, sex)
+    if answers is not None:
+        return literature_based_prediction(answers, current_age, sex)
 
-    # ── Legacy vitality fallback (no features supplied) ──────────────────────
+    # ── Legacy vitality fallback (no questionnaire supplied) ───────────────
     y0   = params["y0"]
     zeta = params["zeta"]
     lam  = params["lambda_jump"]
