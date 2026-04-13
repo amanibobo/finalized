@@ -173,3 +173,10 @@ The notebook covers:
 
 <img width="1389" height="509" alt="image" src="https://github.com/user-attachments/assets/c89f092e-156d-44ae-9944-d2640bbc27f4" />
 
+## Design
+
+used figma to create mocks and system
+
+<img width="3817" height="4146" alt="Colors - Color Palette for the site for easy access dragging and selection" src="https://github.com/user-attachments/assets/f476aea9-adb4-412b-9411-a8524e2fbfdf" />
+
+
