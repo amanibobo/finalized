@@ -2,8 +2,8 @@ deathclock clone built for Deep24 bounty. transforms actuarial science into an e
 
 for usage and more:
 
-[project page](https://animate3d.github.io/) , [youtube video](https://www.youtube.com/watch?v=gcZebvUNyUc) , [google colab](https://colab.research.google.com/drive/1LfOmQ6AY861dxWszBgUNstbgf2qd_CA2#scrollTo=I0h2Of4Z3uoU) , 
-[deep24 bounty submission](https://drive.google.com/file/d/1iFSuCAwWBVzlLCQH32yoikz8M2qBJ8rP/view?usp=sharing) 
+[project page](https://deathclockexplain.vercel.app/) , [youtube video](https://www.youtube.com/watch?v=gcZebvUNyUc) , [google colab](https://colab.research.google.com/drive/1LfOmQ6AY861dxWszBgUNstbgf2qd_CA2#scrollTo=I0h2Of4Z3uoU) , 
+[deep24 bounty submission](https://deep24.com/workflows/e8a99075-9dce-44e5-8354-ca4173c2db50) 
 
 ---
 
